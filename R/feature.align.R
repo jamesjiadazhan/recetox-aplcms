@@ -144,8 +144,8 @@ create_aligned_feature_table <- function(features_table,
 
     number_of_samples <- length(sample_names)
     metadata_colnames <- c("id", "mz", "mzmin", "mzmax", "rt", "rtmin", "rtmax", "npeaks", sample_names)
-    intensity_colnames <- c("id", paste0(sample_names, "_intensity"))
-    rt_colnames <- c("id", paste0(sample_names, "_rt"))
+    intensity_colnames <- c("id", sample_names)
+    rt_colnames <- c("id", sample_names)
 
     aligned_features <- create_empty_tibble(number_of_samples, metadata_colnames, intensity_colnames, rt_colnames)
 

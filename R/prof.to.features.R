@@ -933,19 +933,11 @@ prof.to.features <- function(profile,
     num_features <- nrow(feature_group)
     # The estimation procedure for a single peak
     # Defines the dataframe containing median_mz, median_rt, sd1, sd2, and area
-    if (dplyr::between(num_features, 2, 10)) {
-      # linear interpolation of  missing intensities and calculate the area for a single EIC
-      eic_area <- interpol.area(feature_group[, "rt"], feature_group[, "intensity"], base.curve[, "base.curve"], all_diff_mean_rts)
-      rt_peak_shape <- c(median(feature_group[, "mz"]), median(feature_group[, "rt"]), sd(feature_group[, "rt"]), sd(feature_group[, "rt"]), eic_area)
-      peak_parameters <- rbind(peak_parameters, rt_peak_shape)
-    }
     if (num_features < 2) {
       time_weights <- all_diff_mean_rts[which(base.curve[, "base.curve"] %in% feature_group[2])]
       rt_peak_shape <- c(feature_group[1], feature_group[2], NA, NA, feature_group[3] * time_weights)
       peak_parameters <- rbind(peak_parameters, rt_peak_shape)
-    }
-    # application of selected model and method  
-    if (num_features > 10) {
+    } else {
       # find bandwidth for these particular range
       rt_range <- range(feature_group[, "rt"])
       bw <- min(max(bandwidth * (max(rt_range) - min(rt_range)), min_bandwidth), max_bandwidth)

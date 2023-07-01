@@ -693,7 +693,7 @@ recover.weaker <- function(filename,
   vec_delta_rt <- compute_delta_rt(times)
 
   sample_intensities <- unlist(dplyr::select(
-    intensity_table %>% dplyr::rename_with(~str_remove(., "_intensity")),
+    intensity_table,
     all_of(sample_name)
   ), use.names = FALSE)
 

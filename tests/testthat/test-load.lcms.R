@@ -17,7 +17,7 @@ patrick::with_parameters_test_that(
       filename = c("mbr_test0_copy.mzml")
     ),
     test_case_2 = list(
-      filename = c("mbr_test0_copy.mzxml")
+      filename = c("test0_copy.mzxml")
     )
   )
 )

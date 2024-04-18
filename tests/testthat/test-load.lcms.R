@@ -15,7 +15,7 @@ patrick::with_parameters_test_that(
     input_path <- file.path(testdata, "input", filename)
 
     # Act: Execute the function with the test inputs
-    data <- recetox.aplcms::load.lcms(input_path)
+    data <- load.lcms(input_path)
 
     # Assert: Verify the function output matches expected results
     # Check that the function returns an object of the expected type

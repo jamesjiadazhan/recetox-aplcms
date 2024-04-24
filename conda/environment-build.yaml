@@ -7,4 +7,4 @@ dependencies:
   - anaconda-client
   - conda-build
   - conda-verify
-  - r-base =4.2
+  - r-base

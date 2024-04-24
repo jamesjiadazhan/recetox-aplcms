@@ -4,10 +4,10 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - r-base =4.2
+  - r-base
   - r-mass
   - r-rgl
-  - bioconductor-mzR
+  - bioconductor-mzR ==2.28.0
   - r-splines2
   - r-doparallel
   - r-foreach

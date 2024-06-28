@@ -70,7 +70,8 @@ remove_noise <- function(filename,
                      baseline_correct_noise_percentile,
                      intensity_weighted,
                      do.plot,
-                     cache) {
+                     cache,
+                     grouping_threshold = 0) {
   raw.data <- load_file(filename)
 
   raw.prof <- adaptive.bin(
@@ -87,10 +88,28 @@ remove_noise <- function(filename,
     raw.prof$features$intensities,
     raw.prof$features$grps
   )
-  
+
   run.sel <- raw.prof$height.rec[which(raw.prof$height.rec[, 2] >= raw.prof$min.count.run * min_pres & raw.prof$height.rec[, 3] > baseline_correct), 1]
 
   newprof <- newprof[newprof[, 4] %in% run.sel, ]
+
+  if (grouping_threshold > 0) {
+    sorted_newprof <- newprof[order(newprof[,2]),]
+    new_grps <- cumsum(c(0, diff(sorted_newprof[,2])) > grouping_threshold)
+    sorted_newprof <- cbind(sorted_newprof, new_grps, deparse.level = 0)
+
+    sorted_newprof_df <- tibble::as_tibble(sorted_newprof)
+
+    newprof <- as.matrix(sorted_newprof_df |>
+      dplyr::group_by(V4, V5) |>
+      dplyr::mutate(cluster = cur_group_id()) |>
+      dplyr::ungroup() |>
+      dplyr::arrange(cluster) |>
+      dplyr::select(-V4, -V5)
+    )
+    colnames(newprof) <- NULL
+  }
+
   new.prof <- run_filter(
     newprof,
     min_pres = min_pres,

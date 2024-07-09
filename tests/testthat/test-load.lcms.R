@@ -10,6 +10,10 @@ create_test_case <- function(filename, mz_length, rt_length, intensities_length)
 patrick::with_parameters_test_that(
   "test load.lcms reads different file types",
   {
+    if(packageVersion("mzR") >= "2.29.0" && tools::file_ext(filename) == "mzdata") {
+      print("mzR >= 2.29.0 no longer supports mzdata.")
+      skip()
+    }
     # Arrange: Set up test inputs
     testdata <- file.path("..", "testdata")
     input_path <- file.path(testdata, "input", filename)

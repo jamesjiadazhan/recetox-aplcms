@@ -60,6 +60,7 @@ load_data <- function(filename,
 #' @param intensity_weighted Whether to use intensity to weight mass density estimation.
 #' @param do.plot Indicates whether plot should be drawn.
 #' @param cache Whether to use cache
+#' @param grouping_threshold The maximum difference between two scans to be considered the same EIC. Default is Inf. 
 #' @return A matrix with four columns: m/z value, retention time, intensity, and group number.
 #' @export
 remove_noise <- function(filename,
@@ -71,7 +72,7 @@ remove_noise <- function(filename,
                      intensity_weighted,
                      do.plot,
                      cache,
-                     grouping_threshold = 0) {
+                     grouping_threshold = Inf) {
   raw.data <- load_file(filename)
 
   raw.prof <- adaptive.bin(
@@ -93,7 +94,7 @@ remove_noise <- function(filename,
 
   newprof <- newprof[newprof[, 4] %in% run.sel, ]
 
-  if (grouping_threshold > 0) {
+  if (grouping_threshold < Inf) {
     sorted_newprof <- newprof[order(newprof[,2]),]
     new_grps <- cumsum(c(0, diff(sorted_newprof[,2])) > grouping_threshold)
     sorted_newprof <- cbind(sorted_newprof, new_grps, deparse.level = 0)

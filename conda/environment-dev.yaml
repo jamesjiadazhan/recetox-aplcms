@@ -8,7 +8,7 @@ dependencies:
   - icu <=70.1
   - r-mass
   - r-rgl
-  - bioconductor-mzR ==2.28.0
+  - bioconductor-mzR ==2.36.0
   - r-splines2
   - r-doparallel
   - r-foreach

@@ -74,3 +74,33 @@ patrick::with_parameters_test_that(
     )
   )
 )
+
+test_that("remove noise works with grouping threshold", {
+  testdata <- file.path("..", "testdata")
+  input_path <- file.path(testdata,
+                          "input",
+                          "Tribrid_201106_009-QC1_1_NEG_FISABIO_single_eic.raw.mzML")
+
+  expected <- tibble(group_number = c(1, 2, 3, 5, 6, 7, 8, 9),
+                     n = c(67, 73, 3, 39, 2, 6, 3, 7))
+
+  sut <- remove_noise(
+    input_path,
+    min_pres = 0.8,
+    min_run = 0.2,
+    mz_tol = 5e-05,
+    baseline_correct = 0.0,
+    baseline_correct_noise_percentile = 0.05,
+    intensity_weighted = FALSE,
+    do.plot = FALSE,
+    cache = FALSE,
+    grouping_threshold = 4
+  )
+
+  actual <- sut %>%
+    mutate(group = factor(group_number)) %>%
+    group_by(group_number) %>%
+    summarize(n = n())
+
+  expect_equal(actual, expected)
+})

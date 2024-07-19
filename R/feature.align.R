@@ -1,5 +1,6 @@
 #' @import foreach
 
+#' @export
 create_empty_tibble <- function(number_of_samples, metadata_colnames, intensity_colnames, rt_colnames) {
     features <- new("list")
     features$metadata <- tibble::as_tibble(matrix(nrow = 0, ncol = length(metadata_colnames)), .name_repair = ~metadata_colnames)
@@ -85,23 +86,12 @@ select_mz <- function(sample, mz_tol_relative, rt_tol_relative, min_occurrence, 
 
 #' @export
 create_rows <- function(features,
-                        i,
-                        sel.labels,
                         mz_tol_relative,
                         rt_tol_relative,
                         min_occurrence,
                         sample_names) {
-    if (i %% 100 == 0) {
-        gc()
-    } # call Garbage Collection for performance improvement?
-
-    sample <- dplyr::filter(features, cluster == sel.labels[i])
-    if (nrow(sample) > 1) {
-        if (validate_contents(sample, min_occurrence)) {
-            return(select_mz(sample, mz_tol_relative, rt_tol_relative, min_occurrence, sample_names))
-        }
-    } else if (min_occurrence == 1) {
-        return(create_output(sample_grouped, sample_names))
+    if (validate_contents(features, min_occurrence)) {
+        return(select_mz(features, mz_tol_relative, rt_tol_relative, min_occurrence, sample_names))
     }
     return(NULL)
 }
@@ -160,9 +150,7 @@ create_aligned_feature_table <- function(features_table,
         i = seq_along(sel.labels), .combine = "comb", .multicombine = TRUE
     ) %do% {
         rows <- create_rows(
-            features_table,
-            i,
-            sel.labels, 
+            dplyr::filter(features_table, cluster == sel.labels[i]),
             mz_tol_relative,
             rt_tol_relative,
             min_occurrence,

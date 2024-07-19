@@ -45,6 +45,7 @@ register_functions_to_cluster <- function(cluster) {
         'compute_uniq_grp',
         'predict_smoothed_rt',
         'label_val_to_keep',
+        "create_empty_tibble",
         "create_rows",
         "validate_contents",
         "select_mz",

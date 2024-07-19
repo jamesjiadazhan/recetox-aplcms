@@ -1,5 +1,11 @@
 #' @import foreach
 
+#' Create an empty tibble for the next alignment step. It will contain three tables with aligned metadata, intensities an RTs.
+#' @param number_of_samples Number of different sample names.
+#' @param metadata_colnames Metadata column names: "id", "mz", "mzmin", "mzmax", "rt", "rtmin", "rtmax", "npeaks", sample_names
+#' @param intensity_colnames "id" and sample names; will hold intensities.
+#' @param rt_colnames "id" and sample names; will hold retention times.
+#' @return An empty tibble with slots for metadata, intensities and RTs.
 #' @export
 create_empty_tibble <- function(number_of_samples, metadata_colnames, intensity_colnames, rt_colnames) {
     features <- new("list")
@@ -9,6 +15,10 @@ create_empty_tibble <- function(number_of_samples, metadata_colnames, intensity_
     return(features)
 }
 
+#' Create a list containing 3 tibbles: metadata, intensities and RTs.
+#' @param sample_grouped A dataframe with grouped mz and RT values for a particular cluster.
+#' @param sample_names A list of sample names.
+#' @return A list containing 3 tibbles: metadata, intensities and RTs.
 #' @export
 create_output <- function(sample_grouped, sample_names) {
     number_of_samples <- length(sample_names)
@@ -32,9 +42,12 @@ create_output <- function(sample_grouped, sample_names) {
     return(list(metadata_row = metadata_row, intensity_row = intensity_row, rt_row = rt_row))
 }
 
+#' Validates if the data is present in more than "min_occurence" of samples.
+#' @param samples A subset of the features_table.
+#' @param min_occurrence A minimal number of profiles a feature has to be present in.
+#' @return boolean value whether it is TRUE or FALSE.
 #' @export
 validate_contents <- function(samples, min_occurrence) {
-    # validate whether data is still from at least 'min_occurrence' number of samples
     if (!is.null(nrow(samples))) {
         if (length(unique(samples$sample_id)) >= min_occurrence) {
             return(TRUE)
@@ -44,24 +57,37 @@ validate_contents <- function(samples, min_occurrence) {
     return(FALSE)
 }
 
+#' Compute the kernel density estimation and find the peaks and valleys of a smooth curve.
+#' @param data A vector of m/z or RTs for a particular cluster.
+#' @param bandwidth A bandwidth value for the KDE computation.
+#' @return A list of peaks and valleys positions.
 #' @export
 find_optima <- function(data, bandwidth) {
-    # Kernel Density Estimation
-    den <- density(data, bw = bandwidth)
-    # select statistically significant points
-    turns <- find.turn.point(den$y)
-    return(list(peaks = den$x[turns$pks], valleys = den$x[turns$vlys]))
+  den <- density(data, bw = bandwidth)
+  turns <- find.turn.point(den$y)
+  return(list(peaks = den$x[turns$pks], valleys = den$x[turns$vlys]))
 }
 
+#' Subset data within lower and upper bound from density estimation
+#' @param sample A subset of the features_table.
+#' @param turns A list of peaks and valleys positions.
+#' @param index Whether it subsets on m/z [1] or RT [2] column.
+#' @param i Iterates over the peaks in the turns list.
+#' @return Dataframe subsetted within lower and upper bound from density estimation.
 #' @export
 filter_based_on_density <- function(sample, turns, index, i) {
-    # select data within lower and upper bound from density estimation
     lower_bound <- max(turns$valleys[turns$valleys < turns$peaks[i]])
     upper_bound <- min(turns$valleys[turns$valleys > turns$peaks[i]])
     selected <- which(sample[, index] > lower_bound & sample[, index] <= upper_bound)
     return(sample[selected, ])
 }
 
+#' Groups the features across samples based on RT.
+#' @param sample A dataframe subsetted for the particular cluster.
+#' @param rt_tol_relative The retention time tolerance level for peak alignment.
+#' @param min_occurence A minimal number of profiles a feature has to be present in.
+#' @param sample_names A list of sample names.
+#' @param return A list containing 3 tibbles: metadata, intensities and RTs.
 #' @export
 select_rt <- function(sample, rt_tol_relative, min_occurrence, sample_names) {
     turns <- find_optima(sample$rt, bandwidth = rt_tol_relative / 1.414)
@@ -73,6 +99,13 @@ select_rt <- function(sample, rt_tol_relative, min_occurrence, sample_names) {
     }
 }
 
+#' Groups the features across samples based on m/z.
+#' @param sample A dataframe subsetted for the particular cluster.
+#' @param mz_tol_relative The m/z tolerance level for peak alignment.
+#' @param rt_tol_relative The retention time tolerance level for peak alignment.
+#' @param min_occurence A minimal number of profiles a feature has to be present in.
+#' @param sample_names A list of sample names.
+#' @return A list containing 3 tibbles: metadata, intensities and RTs.
 #' @export
 select_mz <- function(sample, mz_tol_relative, rt_tol_relative, min_occurrence, sample_names) {
     turns <- find_optima(sample$mz, bandwidth = mz_tol_relative * median(sample$mz))
@@ -84,6 +117,13 @@ select_mz <- function(sample, mz_tol_relative, rt_tol_relative, min_occurrence, 
     }
 }
 
+#' Groups the mz and RT for particular cluster.
+#' @param features The features table subsetted for a particular cluster.
+#' @param mz_tol_relative The m/z tolerance level for peak alignment.
+#' @param rt_tol_relative The retention time tolerance level for peak alignment.
+#' @param min_occurrence A minimal number of profiles a feature has to be present in.
+#' @param sample_names A list of sample names.
+#' @return A list containing 3 tibbles: metadata, intensities and RTs.
 #' @export
 create_rows <- function(features,
                         mz_tol_relative,
@@ -96,6 +136,8 @@ create_rows <- function(features,
     return(NULL)
 }
 
+#' Combines the output (i.e. metadata, intensity and RT) from different clusters to one respective tibble.
+#' @return Tibbles combining the output (metadata, intensity and RT respectively) from different clusters.
 #' @export
 comb <- function(x, ...) {
     mapply(tibble::as_tibble, (mapply(rbind, x, ..., SIMPLIFY = FALSE)))

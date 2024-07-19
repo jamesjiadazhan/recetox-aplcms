@@ -155,13 +155,14 @@ create_aligned_feature_table <- function(features_table,
     sel.labels <- as.numeric(names(groups_cardinality)[groups_cardinality >= min_occurrence])
 
     # retention time alignment
+    
     aligned_features <- foreach::foreach(
         i = seq_along(sel.labels), .combine = "comb", .multicombine = TRUE
-    ) %dopar% {
+    ) %do% {
         rows <- create_rows(
             features_table,
             i,
-            sel.labels,
+            sel.labels, 
             mz_tol_relative,
             rt_tol_relative,
             min_occurrence,

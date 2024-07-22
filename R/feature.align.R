@@ -1,7 +1,8 @@
 #' @import foreach
 
 #' Create an empty tibble for the next alignment step. It will contain three tables with aligned metadata, intensities an RTs.
-#' @param number_of_samples Number of different sample names.
+#' @param number_of_samples Number
+#'  of different sample names.
 #' @param metadata_colnames Metadata column names: "id", "mz", "mzmin", "mzmax", "rt", "rtmin", "rtmax", "npeaks", sample_names
 #' @param intensity_colnames "id" and sample names; will hold intensities.
 #' @param rt_colnames "id" and sample names; will hold retention times.
@@ -15,30 +16,48 @@ create_empty_tibble <- function(number_of_samples, metadata_colnames, intensity_
   return(features)
 }
 
+create_metadata <- function(sample_grouped, sample_names) {
+  sample_presence <- sapply(sample_names,
+    FUN=function(x) {
+      as.numeric(any(sample_grouped$sample_id == x))
+    }
+  )
+
+  metadata_row <- dplyr::summarise(
+    sample_grouped,
+    mzmean = mean(mz),
+    mzmin = min(mz),
+    mzmax = max(mz),
+    rtmean = mean(rt),
+    rtmin = min(rt),
+    rtmax = max(rt),
+    npeaks = n()
+  ) %>% rename(mz = "mzmean", rt = "rtmean")
+
+  metadata_row <- dplyr::bind_cols(metadata_row, as.list(sample_presence))
+  return(as.vector(unlist(metadata_row[1,])))
+}
+
 #' Create a list containing 3 tibbles: metadata, intensities and RTs.
 #' @param sample_grouped A dataframe with grouped mz and RT values for a particular cluster.
 #' @param sample_names A list of sample names.
 #' @return A list containing 3 tibbles: metadata, intensities and RTs.
 #' @export
 create_output <- function(sample_grouped, sample_names) {
+  metadata_row <- create_metadata(sample_grouped, sample_names)
+
   number_of_samples <- length(sample_names)
   intensity_row <- rep(0, number_of_samples)
   rt_row <- rep(0, number_of_samples)
-  sample_presence <- rep(0, number_of_samples)
 
   for (i in seq_along(intensity_row)) {
     filtered <- filter(sample_grouped, sample_id == sample_names[i])
+
     if (nrow(filtered) != 0) {
-      sample_presence[i] <- 1
       intensity_row[i] <- sum(filtered$area)
       rt_row[i] <- median(filtered$rt)
     }
   }
-
-  mz <- sample_grouped$mz
-  rt <- sample_grouped$rt
-  metadata_row <- c(mean(mz), min(mz), max(mz), mean(rt), min(rt), max(rt), nrow(sample_grouped), sample_presence)
-
   return(list(metadata_row = metadata_row, intensity_row = intensity_row, rt_row = rt_row))
 }
 
@@ -171,8 +190,6 @@ create_aligned_feature_table <- function(features_table,
     doParallel::registerDoParallel(cluster)
     register_functions_to_cluster(cluster)
   }
-
-
 
   number_of_samples <- length(sample_names)
   metadata_colnames <- c("id", "mz", "mzmin", "mzmax", "rt", "rtmin", "rtmax", "npeaks", sample_names)

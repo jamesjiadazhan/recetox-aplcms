@@ -8,11 +8,11 @@
 #' @return An empty tibble with slots for metadata, intensities and RTs.
 #' @export
 create_empty_tibble <- function(number_of_samples, metadata_colnames, intensity_colnames, rt_colnames) {
-    features <- new("list")
-    features$metadata <- tibble::as_tibble(matrix(nrow = 0, ncol = length(metadata_colnames)), .name_repair = ~metadata_colnames)
-    features$intensity <- tibble::as_tibble(matrix(nrow = 0, ncol = length(intensity_colnames)), .name_repair = ~intensity_colnames)
-    features$rt <- tibble::as_tibble(matrix(nrow = 0, ncol = length(rt_colnames)), .name_repair = ~rt_colnames)
-    return(features)
+  features <- new("list")
+  features$metadata <- tibble::as_tibble(matrix(nrow = 0, ncol = length(metadata_colnames)), .name_repair = ~metadata_colnames)
+  features$intensity <- tibble::as_tibble(matrix(nrow = 0, ncol = length(intensity_colnames)), .name_repair = ~intensity_colnames)
+  features$rt <- tibble::as_tibble(matrix(nrow = 0, ncol = length(rt_colnames)), .name_repair = ~rt_colnames)
+  return(features)
 }
 
 #' Create a list containing 3 tibbles: metadata, intensities and RTs.
@@ -21,25 +21,25 @@ create_empty_tibble <- function(number_of_samples, metadata_colnames, intensity_
 #' @return A list containing 3 tibbles: metadata, intensities and RTs.
 #' @export
 create_output <- function(sample_grouped, sample_names) {
-    number_of_samples <- length(sample_names)
-    intensity_row <- rep(0, number_of_samples)
-    rt_row <- rep(0, number_of_samples)
-    sample_presence <- rep(0, number_of_samples)
+  number_of_samples <- length(sample_names)
+  intensity_row <- rep(0, number_of_samples)
+  rt_row <- rep(0, number_of_samples)
+  sample_presence <- rep(0, number_of_samples)
 
-    for (i in seq_along(intensity_row)) {
-        filtered <- filter(sample_grouped, sample_id == sample_names[i])
-        if (nrow(filtered) != 0) {
-            sample_presence[i] <- 1
-            intensity_row[i] <- sum(filtered$area)
-            rt_row[i] <- median(filtered$rt)
-        }
+  for (i in seq_along(intensity_row)) {
+    filtered <- filter(sample_grouped, sample_id == sample_names[i])
+    if (nrow(filtered) != 0) {
+      sample_presence[i] <- 1
+      intensity_row[i] <- sum(filtered$area)
+      rt_row[i] <- median(filtered$rt)
     }
+  }
 
-    mz <- sample_grouped$mz
-    rt <- sample_grouped$rt
-    metadata_row <- c(mean(mz), min(mz), max(mz), mean(rt), min(rt), max(rt), nrow(sample_grouped), sample_presence)
+  mz <- sample_grouped$mz
+  rt <- sample_grouped$rt
+  metadata_row <- c(mean(mz), min(mz), max(mz), mean(rt), min(rt), max(rt), nrow(sample_grouped), sample_presence)
 
-    return(list(metadata_row = metadata_row, intensity_row = intensity_row, rt_row = rt_row))
+  return(list(metadata_row = metadata_row, intensity_row = intensity_row, rt_row = rt_row))
 }
 
 #' Validates if the data is present in more than "min_occurence" of samples.
@@ -48,13 +48,13 @@ create_output <- function(sample_grouped, sample_names) {
 #' @return boolean value whether it is TRUE or FALSE.
 #' @export
 validate_contents <- function(samples, min_occurrence) {
-    if (!is.null(nrow(samples))) {
-        if (length(unique(samples$sample_id)) >= min_occurrence) {
-            return(TRUE)
-        }
-        return(FALSE)
+  if (!is.null(nrow(samples))) {
+    if (length(unique(samples$sample_id)) >= min_occurrence) {
+      return(TRUE)
     }
     return(FALSE)
+  }
+  return(FALSE)
 }
 
 #' Compute the kernel density estimation and find the peaks and valleys of a smooth curve.
@@ -76,10 +76,10 @@ find_optima <- function(data, bandwidth) {
 #' @return Dataframe subsetted within lower and upper bound from density estimation.
 #' @export
 filter_based_on_density <- function(sample, turns, index, i) {
-    lower_bound <- max(turns$valleys[turns$valleys < turns$peaks[i]])
-    upper_bound <- min(turns$valleys[turns$valleys > turns$peaks[i]])
-    selected <- which(sample[, index] > lower_bound & sample[, index] <= upper_bound)
-    return(sample[selected, ])
+  lower_bound <- max(turns$valleys[turns$valleys < turns$peaks[i]])
+  upper_bound <- min(turns$valleys[turns$valleys > turns$peaks[i]])
+  selected <- which(sample[, index] > lower_bound & sample[, index] <= upper_bound)
+  return(sample[selected, ])
 }
 
 #' Groups the features across samples based on RT.
@@ -90,13 +90,13 @@ filter_based_on_density <- function(sample, turns, index, i) {
 #' @param return A list containing 3 tibbles: metadata, intensities and RTs.
 #' @export
 select_rt <- function(sample, rt_tol_relative, min_occurrence, sample_names) {
-    turns <- find_optima(sample$rt, bandwidth = rt_tol_relative / 1.414)
-    for (i in seq_along(turns$peaks)) {
-        sample_grouped <- filter_based_on_density(sample, turns, 2, i)
-        if (validate_contents(sample_grouped, min_occurrence)) {
-            return(create_output(sample_grouped, sample_names))
-        }
+  turns <- find_optima(sample$rt, bandwidth = rt_tol_relative / 1.414)
+  for (i in seq_along(turns$peaks)) {
+    sample_grouped <- filter_based_on_density(sample, turns, 2, i)
+    if (validate_contents(sample_grouped, min_occurrence)) {
+      return(create_output(sample_grouped, sample_names))
     }
+  }
 }
 
 #' Groups the features across samples based on m/z.
@@ -108,13 +108,13 @@ select_rt <- function(sample, rt_tol_relative, min_occurrence, sample_names) {
 #' @return A list containing 3 tibbles: metadata, intensities and RTs.
 #' @export
 select_mz <- function(sample, mz_tol_relative, rt_tol_relative, min_occurrence, sample_names) {
-    turns <- find_optima(sample$mz, bandwidth = mz_tol_relative * median(sample$mz))
-    for (i in seq_along(turns$peaks)) {
-        sample_grouped <- filter_based_on_density(sample, turns, 1, i)
-        if (validate_contents(sample_grouped, min_occurrence)) {
-            return(select_rt(sample_grouped, rt_tol_relative, min_occurrence, sample_names))
-        }
+  turns <- find_optima(sample$mz, bandwidth = mz_tol_relative * median(sample$mz))
+  for (i in seq_along(turns$peaks)) {
+    sample_grouped <- filter_based_on_density(sample, turns, 1, i)
+    if (validate_contents(sample_grouped, min_occurrence)) {
+      return(select_rt(sample_grouped, rt_tol_relative, min_occurrence, sample_names))
     }
+  }
 }
 
 #' Groups the mz and RT for particular cluster.
@@ -130,17 +130,17 @@ create_rows <- function(features,
                         rt_tol_relative,
                         min_occurrence,
                         sample_names) {
-    if (validate_contents(features, min_occurrence)) {
-        return(select_mz(features, mz_tol_relative, rt_tol_relative, min_occurrence, sample_names))
-    }
-    return(NULL)
+  if (validate_contents(features, min_occurrence)) {
+    return(select_mz(features, mz_tol_relative, rt_tol_relative, min_occurrence, sample_names))
+  }
+  return(NULL)
 }
 
 #' Combines the output (i.e. metadata, intensity and RT) from different clusters to one respective tibble.
 #' @return Tibbles combining the output (metadata, intensity and RT respectively) from different clusters.
 #' @export
 comb <- function(x, ...) {
-    mapply(tibble::as_tibble, (mapply(rbind, x, ..., SIMPLIFY = FALSE)))
+  mapply(tibble::as_tibble, (mapply(rbind, x, ..., SIMPLIFY = FALSE)))
 }
 
 #' Align peaks from spectra into a feature table.
@@ -163,54 +163,54 @@ create_aligned_feature_table <- function(features_table,
                                          rt_tol_relative,
                                          mz_tol_relative,
                                          cluster = 4) {
-    if (!is(cluster, "cluster")) {
-        cluster <- parallel::makeCluster(cluster)
-        on.exit(parallel::stopCluster(cluster))
-        
-        # NOTE: side effect (doParallel has no functionality to clean up)
-        doParallel::registerDoParallel(cluster)
-        register_functions_to_cluster(cluster)
+  if (!is(cluster, "cluster")) {
+    cluster <- parallel::makeCluster(cluster)
+    on.exit(parallel::stopCluster(cluster))
+
+    # NOTE: side effect (doParallel has no functionality to clean up)
+    doParallel::registerDoParallel(cluster)
+    register_functions_to_cluster(cluster)
+  }
+
+
+
+  number_of_samples <- length(sample_names)
+  metadata_colnames <- c("id", "mz", "mzmin", "mzmax", "rt", "rtmin", "rtmax", "npeaks", sample_names)
+  intensity_colnames <- c("id", sample_names)
+  rt_colnames <- c("id", sample_names)
+
+  aligned_features <- create_empty_tibble(number_of_samples, metadata_colnames, intensity_colnames, rt_colnames)
+
+  # table with number of values per group
+  groups_cardinality <- table(features_table$cluster)
+  # count those with minimal occurrence
+  sel.labels <- as.numeric(names(groups_cardinality)[groups_cardinality >= min_occurrence])
+
+  # retention time alignment
+
+  aligned_features <- foreach::foreach(
+    i = seq_along(sel.labels), .combine = "comb", .multicombine = TRUE
+  ) %do% {
+    rows <- create_rows(
+      dplyr::filter(features_table, cluster == sel.labels[i]),
+      mz_tol_relative,
+      rt_tol_relative,
+      min_occurrence,
+      sample_names
+    )
+
+    if (!is.null(rows)) {
+      rows$metadata_row <- c(i, rows$metadata_row)
+      rows$intensity_row <- c(i, rows$intensity_row)
+      rows$rt_row <- c(i, rows$rt_row)
     }
 
+    list(metadata = rows$metadata_row, intensity = rows$intensity_row, rt = rows$rt_row)
+  }
 
+  colnames(aligned_features$metadata) <- metadata_colnames
+  colnames(aligned_features$intensity) <- intensity_colnames
+  colnames(aligned_features$rt) <- rt_colnames
 
-    number_of_samples <- length(sample_names)
-    metadata_colnames <- c("id", "mz", "mzmin", "mzmax", "rt", "rtmin", "rtmax", "npeaks", sample_names)
-    intensity_colnames <- c("id", sample_names)
-    rt_colnames <- c("id", sample_names)
-
-    aligned_features <- create_empty_tibble(number_of_samples, metadata_colnames, intensity_colnames, rt_colnames)
-
-    # table with number of values per group
-    groups_cardinality <- table(features_table$cluster)
-    # count those with minimal occurrence
-    sel.labels <- as.numeric(names(groups_cardinality)[groups_cardinality >= min_occurrence])
-
-    # retention time alignment
-    
-    aligned_features <- foreach::foreach(
-        i = seq_along(sel.labels), .combine = "comb", .multicombine = TRUE
-    ) %do% {
-        rows <- create_rows(
-            dplyr::filter(features_table, cluster == sel.labels[i]),
-            mz_tol_relative,
-            rt_tol_relative,
-            min_occurrence,
-            sample_names
-        )
-
-        if (!is.null(rows)) {
-            rows$metadata_row <- c(i, rows$metadata_row)
-            rows$intensity_row <- c(i, rows$intensity_row)
-            rows$rt_row <- c(i, rows$rt_row)
-        }
-
-        list(metadata = rows$metadata_row, intensity = rows$intensity_row, rt = rows$rt_row)
-    }
-
-    colnames(aligned_features$metadata) <- metadata_colnames
-    colnames(aligned_features$intensity) <- intensity_colnames
-    colnames(aligned_features$rt) <- rt_colnames
-
-    return(aligned_features)
+  return(aligned_features)
 }

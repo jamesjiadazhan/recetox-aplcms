@@ -182,9 +182,7 @@ unsupervised <- function(
   message("**** time correction ****")
   corrected <- foreach::foreach(this.feature = extracted_clusters$feature_tables) %dopar% correct_time(
     this.feature,
-    template_features,
-    extracted_clusters$mz_tol_relative,
-    extracted_clusters$rt_tol_relative
+    template_features
   )
 
   message("**** computing clusters ****")

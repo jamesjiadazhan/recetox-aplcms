@@ -6,19 +6,17 @@ NULL
 compute_comb <- function(template_features, features) {
   combined <- dplyr::bind_rows(
     template_features,
-    dplyr::bind_cols(features |> dplyr::select(c(mz, rt)), sample_id = features$sample_id)
+    dplyr::bind_cols(features |> dplyr::select(c(mz, rt, cluster)), sample_id = features$sample_id)
   )
   combined <- combined |> dplyr::arrange_at("mz")
   return(combined)
 }
 
 #' @export
-compute_sel <- function(combined, mz_tol_relative, rt_tol_relative) {
+compute_sel <- function(combined) {
   l <- nrow(combined)
-  sel <- which(combined$mz[2:l] - combined$mz[1:(l - 1)] <
-    mz_tol_relative * combined$mz[1:(l - 1)] * 2 &
-    abs(combined$rt[2:l] - combined$rt[1:(l - 1)]) <
-      rt_tol_relative & combined$sample_id[2:l] != combined$sample_id[1:(l - 1)])
+  sel <- which(combined$cluster[1:(l - 1)] == combined$cluster[2:l] & 
+               combined$sample_id[1:(l - 1)] != combined$sample_id[2:l])
   return(sel)
 }
 
@@ -32,7 +30,7 @@ compute_template_adjusted_rt <- function(combined, sel, j) {
 
   # now the first column is the template retention time.
   # the second column is the to-be-adjusted retention time
-  
+
   all_features <- all_features[order(all_features[, 2]), ]
   return(all_features)
 }
@@ -82,20 +80,20 @@ compute_template <- function(extracted_features) {
   template <- extracted_features[[template_id]]$sample_id[1]
   message(paste("the template is sample", template))
 
-  candi <- tibble::as_tibble(extracted_features[[template_id]]) |> dplyr::select(c(mz, rt))
+  candi <- tibble::as_tibble(extracted_features[[template_id]]) |> dplyr::select(c(mz, rt, cluster))
   template_features <- dplyr::bind_cols(candi, sample_id = rep(template, nrow(candi)))
   return(tibble::as_tibble(template_features))
 }
 
 #' @export
-correct_time <- function(this.feature, template_features, mz_tol_relative, rt_tol_relative) {
+correct_time <- function(this.feature, template_features) {
     orig.features <- this.feature
     template <- unique(template_features$sample_id)[1]
     j <- unique(this.feature$sample_id)[1]
-
+    
     if (j != template) {
       this.comb <- compute_comb(template_features, this.feature)
-      sel <- compute_sel(this.comb, mz_tol_relative, rt_tol_relative)
+      sel <- compute_sel(this.comb)
 
       if (length(sel) < 20) {
         stop("too few, aborted")
@@ -135,8 +133,6 @@ correct_time <- function(this.feature, template_features, mz_tol_relative, rt_to
 #'  column in each of the matrices is changed to new adjusted values.
 #' @export
 adjust.time <- function(extracted_features,
-                        mz_tol_relative,
-                        rt_tol_relative,
                         colors = NA,
                         do.plot = TRUE) {
   number_of_samples <- length(extracted_features)
@@ -154,9 +150,7 @@ adjust.time <- function(extracted_features,
 
   corrected_features <- foreach::foreach(features = extracted_features) %do% correct_time(
     features,
-    template_features,
-    mz_tol_relative,
-    rt_tol_relative
+    template_features
   )
 
   if (do.plot) {
@@ -164,7 +158,6 @@ adjust.time <- function(extracted_features,
       colors,
       extracted_features,
       corrected_features,
-      rt_tol_relative
     )
   }
 

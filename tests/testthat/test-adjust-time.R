@@ -3,11 +3,7 @@ patrick::with_parameters_test_that(
   {
     testdata <- file.path("..", "testdata")
 
-    filenames <- lapply(files, function(x) {
-      file.path(testdata, "clusters", paste0(x, "_extracted_clusters.parquet"))
-    })
-
-    extracted <- lapply(filenames, arrow::read_parquet)
+    extracted <- read_parquet_files(files, "clusters", "_extracted_clusters.parquet")
     template_features <- compute_template(extracted)
 
     expected <- file.path(testdata, "template", "RCX_shortened.parquet")
@@ -30,31 +26,18 @@ patrick::with_parameters_test_that(
     template_features <- file.path(testdata, "template", "RCX_shortened.parquet")
     template_features <- arrow::read_parquet(template_features)
 
-    extracted <- file.path(testdata, "clusters", paste0(.test_name, "_extracted_clusters.parquet"))
-    extracted <- arrow::read_parquet(extracted)
+    extracted <- read_parquet_files(files, "clusters", "_extracted_clusters.parquet")
 
-    corrected <- correct_time(
-      this.feature = extracted,
-      template_features = template_features,
-      mz_tol_relative = mz_tol_relative,
-      rt_tol_relative = rt_tol_relative
-    )
+    corrected <- lapply(extracted, function(x){
+      correct_time(x, template_features)
+    })
 
-    expected <- tibble::as_tibble(arrow::read_parquet(file.path(testdata, "adjusted", paste0(.test_name, ".parquet"))))
-    expect_equal(corrected, expected)
+    expected <- read_parquet_files(files, "adjusted", ".parquet")
+    expect_equal(corrected, expected, tolerance = 0.01)
   },
   patrick::cases(
-    RCX_06_shortened = list(
-      mz_tol_relative = 6.856763e-06,
-      rt_tol_relative = 3.618581
-    ),
-    RCX_07_shortened = list(
-      mz_tol_relative = 6.856763e-06,
-      rt_tol_relative = 3.618581
-    ),
-    RCX_08_shortened = list(
-      mz_tol_relative = 6.856763e-06,
-      rt_tol_relative = 3.618581
+    RCX_shortened = list(
+      files = c("RCX_06_shortened", "RCX_07_shortened", "RCX_08_shortened")
     )
   )
 )

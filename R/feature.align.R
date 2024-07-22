@@ -35,7 +35,11 @@ create_metadata <- function(sample_grouped, sample_names) {
   ) %>% rename(mz = "mzmean", rt = "rtmean")
 
   metadata_row <- dplyr::bind_cols(metadata_row, as.list(sample_presence))
-  return(as.vector(unlist(metadata_row[1,])))
+  return(metadata_row)
+}
+
+first_tibble_row_as_vector <- function(x) {
+  return(as.vector(unlist(x[1,])))
 }
 
 #' Create a list containing 3 tibbles: metadata, intensities and RTs.
@@ -46,19 +50,22 @@ create_metadata <- function(sample_grouped, sample_names) {
 create_output <- function(sample_grouped, sample_names) {
   metadata_row <- create_metadata(sample_grouped, sample_names)
 
-  number_of_samples <- length(sample_names)
-  intensity_row <- rep(0, number_of_samples)
-  rt_row <- rep(0, number_of_samples)
+  intensity_row <- sample_grouped %>%
+   group_by(sample_id) %>%
+   summarise(intensity = sum(area)) %>%
+   pivot_wider(names_from = "sample_id", values_from = "intensity")
 
-  for (i in seq_along(intensity_row)) {
-    filtered <- filter(sample_grouped, sample_id == sample_names[i])
 
-    if (nrow(filtered) != 0) {
-      intensity_row[i] <- sum(filtered$area)
-      rt_row[i] <- median(filtered$rt)
-    }
-  }
-  return(list(metadata_row = metadata_row, intensity_row = intensity_row, rt_row = rt_row))
+  rt_row <- sample_grouped %>%
+   group_by(sample_id) %>%
+   summarise(rt = median(rt)) %>%
+   pivot_wider(names_from = "sample_id", values_from = "rt")
+  
+  return(list(
+    metadata_row = (metadata_row),
+    intensity_row = (intensity_row),
+    rt_row = (rt_row)
+  ))
 }
 
 #' Validates if the data is present in more than "min_occurence" of samples.

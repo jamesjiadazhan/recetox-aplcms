@@ -52,17 +52,14 @@ patrick::with_parameters_test_that(
         )
     })
 
-    expected <- lapply(expected_files, function(x) {
-      xx <- file.path(testdata, "extracted", x)
-      tibble::as_tibble(arrow::read_parquet(xx))
-    })
+    expected <- read_parquet_files(expected_files, "extracted", ".parquet")
 
     expect_equal(actual, expected, tolerance = 0.02)
   },
   patrick::cases(
     RCX_shortened = list(
       files = c("RCX_06_shortened.mzML", "RCX_07_shortened.mzML", "RCX_08_shortened.mzML"),
-      expected_files = c("RCX_06_shortened.parquet", "RCX_07_shortened.parquet", "RCX_08_shortened.parquet"),
+      expected_files = c("RCX_06_shortened", "RCX_07_shortened", "RCX_08_shortened"),
       mz_tol = 1e-05,
       min_pres = 0.5,
       min_run = 12,
@@ -74,7 +71,7 @@ patrick::with_parameters_test_that(
     ),
     qc_no_dil_milliq = list(
       files = c("8_qc_no_dil_milliq.mzml", "21_qc_no_dil_milliq.mzml", "29_qc_no_dil_milliq.mzml"),
-      expected_files = c("8_qc_no_dil_milliq.mzml.parquet", "21_qc_no_dil_milliq.mzml.parquet", "29_qc_no_dil_milliq.mzml.parquet"),
+      expected_files = c("8_qc_no_dil_milliq.mzml", "21_qc_no_dil_milliq.mzml", "29_qc_no_dil_milliq.mzml"),
       mz_tol = 5e-05,
       min_pres = 0.7,
       min_run = 0.5,

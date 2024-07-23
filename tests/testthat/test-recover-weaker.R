@@ -8,15 +8,9 @@ patrick::with_parameters_test_that(
       file.path(testdata, "input", paste0(x, ".mzML"))
     })
 
-    extracted <- lapply(files, function(x) {
-      xx <- file.path(testdata, "extracted", paste0(x, ".parquet"))
-      arrow::read_parquet(xx)
-    })
+    extracted <- read_parquet_files(files, "extracted", ".parquet")
 
-    adjusted <- lapply(files, function(x) {
-      xx <- file.path(testdata, "adjusted", paste0(x, ".parquet"))
-      arrow::read_parquet(xx)
-    })
+    adjusted <- read_parquet_files(files, "adjusted", ".parquet")
 
     aligned <- load_aligned_features(
       file.path(testdata, "aligned", "metadata_table.parquet"),
@@ -54,17 +48,9 @@ patrick::with_parameters_test_that(
     extracted_recovered_actual <- lapply(recovered, function(x) x$extracted_features |> dplyr::arrange_at(keys))
     corrected_recovered_actual <- lapply(recovered, function(x) x$adjusted_features |> dplyr::arrange_at(keys))
 
+    extracted_recovered_expected <- read_parquet_files(files, file.path("recovered", "recovered-extracted"), ".parquet")
 
-    extracted_recovered_expected <- lapply(files, function(x) {
-      xx <- file.path(testdata, "recovered", "recovered-extracted", paste0(x, ".parquet"))
-      arrow::read_parquet(xx)
-    })
-
-
-    corrected_recovered_expected <- lapply(files, function(x) {
-      xx <- file.path(testdata, "recovered", "recovered-corrected", paste0(x, ".parquet"))
-      arrow::read_parquet(xx)
-    })
+    corrected_recovered_expected <- read_parquet_files(files, file.path("recovered", "recovered-corrected"), ".parquet")
 
     expect_equal(extracted_recovered_actual, extracted_recovered_expected)
     expect_equal(corrected_recovered_actual, corrected_recovered_expected)

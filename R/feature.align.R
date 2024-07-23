@@ -1,5 +1,3 @@
-#' @import foreach
-
 #' Create a metadata row tibble with min, max and mean mz and RT values.
 #' @param sample_grouped A dataframe with grouped mz and RT values for a particular cluster.
 #' @param sample_names A list of sample names.

@@ -1,21 +1,8 @@
 #' @import foreach
 
-#' Create an empty tibble for the next alignment step. It will contain three tables with aligned metadata, intensities an RTs.
-#' @param number_of_samples Number
-#'  of different sample names.
-#' @param metadata_colnames Metadata column names: "id", "mz", "mzmin", "mzmax", "rt", "rtmin", "rtmax", "npeaks", sample_names
-#' @param intensity_colnames "id" and sample names; will hold intensities.
-#' @param rt_colnames "id" and sample names; will hold retention times.
-#' @return An empty tibble with slots for metadata, intensities and RTs.
-#' @export
-create_empty_tibble <- function(number_of_samples, metadata_colnames, intensity_colnames, rt_colnames) {
-  features <- new("list")
-  features$metadata <- tibble::as_tibble(matrix(nrow = 0, ncol = length(metadata_colnames)), .name_repair = ~metadata_colnames)
-  features$intensity <- tibble::as_tibble(matrix(nrow = 0, ncol = length(intensity_colnames)), .name_repair = ~intensity_colnames)
-  features$rt <- tibble::as_tibble(matrix(nrow = 0, ncol = length(rt_colnames)), .name_repair = ~rt_colnames)
-  return(features)
-}
-
+#' Create a metadata row tibble with min, max and mean mz and RT values.
+#' @param sample_grouped A dataframe with grouped mz and RT values for a particular cluster.
+#' @param sample_names A list of sample names.
 create_metadata <- function(sample_grouped, sample_names) {
   sample_presence <- sapply(sample_names,
     FUN=function(x) {
@@ -38,8 +25,25 @@ create_metadata <- function(sample_grouped, sample_names) {
   return(metadata_row)
 }
 
-first_tibble_row_as_vector <- function(x) {
-  return(as.vector(unlist(x[1,])))
+#' Compute summed area for each sample
+#' @param sample_grouped A dataframe with grouped mz and RT values for a particular cluster.
+#' @return Summed area for each sample.
+create_intensity_row <- function(sample_grouped) {
+  sample_grouped %>%
+   group_by(sample_id) %>%
+   summarise(intensity = sum(area)) %>%
+   pivot_wider(names_from = "sample_id", values_from = "intensity")
+}
+
+#' Compute median RT for each sample
+#' @param sample_grouped A dataframe with grouped mz and RT values for a particular cluster.
+#' @return Median RT for each sample.
+
+create_rt_row <- function(sample_grouped) {
+  sample_grouped %>%
+   group_by(sample_id) %>%
+   summarise(rt = median(rt)) %>%
+   pivot_wider(names_from = "sample_id", values_from = "rt")
 }
 
 #' Create a list containing 3 tibbles: metadata, intensities and RTs.
@@ -49,22 +53,13 @@ first_tibble_row_as_vector <- function(x) {
 #' @export
 create_output <- function(sample_grouped, sample_names) {
   metadata_row <- create_metadata(sample_grouped, sample_names)
-
-  intensity_row <- sample_grouped %>%
-   group_by(sample_id) %>%
-   summarise(intensity = sum(area)) %>%
-   pivot_wider(names_from = "sample_id", values_from = "intensity")
-
-
-  rt_row <- sample_grouped %>%
-   group_by(sample_id) %>%
-   summarise(rt = median(rt)) %>%
-   pivot_wider(names_from = "sample_id", values_from = "rt")
+  intensity_row <- create_intensity_row(sample_grouped)
+  rt_row <- create_rt_row(sample_grouped)
   
   return(list(
-    metadata_row = (metadata_row),
-    intensity_row = (intensity_row),
-    rt_row = (rt_row)
+    metadata_row = metadata_row,
+    intensity_row = intensity_row,
+    rt_row = rt_row
   ))
 }
 
@@ -108,42 +103,7 @@ filter_based_on_density <- function(sample, turns, index, i) {
   return(sample[selected, ])
 }
 
-#' Groups the features across samples based on RT.
-#' @param sample A dataframe subsetted for the particular cluster.
-#' @param rt_tol_relative The retention time tolerance level for peak alignment.
-#' @param min_occurence A minimal number of profiles a feature has to be present in.
-#' @param sample_names A list of sample names.
-#' @param return A list containing 3 tibbles: metadata, intensities and RTs.
-#' @export
-select_rt <- function(sample, rt_tol_relative, min_occurrence, sample_names) {
-  turns <- find_optima(sample$rt, bandwidth = rt_tol_relative / 1.414)
-  for (i in seq_along(turns$peaks)) {
-    sample_grouped <- filter_based_on_density(sample, turns, 2, i)
-    if (validate_contents(sample_grouped, min_occurrence)) {
-      return(create_output(sample_grouped, sample_names))
-    }
-  }
-}
-
-#' Groups the features across samples based on m/z.
-#' @param sample A dataframe subsetted for the particular cluster.
-#' @param mz_tol_relative The m/z tolerance level for peak alignment.
-#' @param rt_tol_relative The retention time tolerance level for peak alignment.
-#' @param min_occurence A minimal number of profiles a feature has to be present in.
-#' @param sample_names A list of sample names.
-#' @return A list containing 3 tibbles: metadata, intensities and RTs.
-#' @export
-select_mz <- function(sample, mz_tol_relative, rt_tol_relative, min_occurrence, sample_names) {
-  turns <- find_optima(sample$mz, bandwidth = mz_tol_relative * median(sample$mz))
-  for (i in seq_along(turns$peaks)) {
-    sample_grouped <- filter_based_on_density(sample, turns, 1, i)
-    if (validate_contents(sample_grouped, min_occurrence)) {
-      return(select_rt(sample_grouped, rt_tol_relative, min_occurrence, sample_names))
-    }
-  }
-}
-
-#' Groups the mz and RT for particular cluster.
+#' Group the mz and RT for particular cluster.
 #' @param features The features table subsetted for a particular cluster.
 #' @param mz_tol_relative The m/z tolerance level for peak alignment.
 #' @param rt_tol_relative The retention time tolerance level for peak alignment.
@@ -151,22 +111,57 @@ select_mz <- function(sample, mz_tol_relative, rt_tol_relative, min_occurrence, 
 #' @param sample_names A list of sample names.
 #' @return A list containing 3 tibbles: metadata, intensities and RTs.
 #' @export
-create_rows <- function(features,
+create_features_from_cluster <- function(features,
                         mz_tol_relative,
                         rt_tol_relative,
                         min_occurrence,
                         sample_names) {
-  if (validate_contents(features, min_occurrence)) {
-    return(select_mz(features, mz_tol_relative, rt_tol_relative, min_occurrence, sample_names))
+  if (!validate_contents(features, min_occurrence)) {
+    return(NULL)
   }
-  return(NULL)
+
+  # create empty tibble rows
+  metadata <- NULL
+  intensity <- NULL
+  rt <- NULL
+
+  # split according to mz values
+  turns_mz <- find_optima(features$mz, bandwidth = mz_tol_relative * median(features$mz))
+  for (i in seq_along(turns_mz$peaks)) {
+    sample_grouped_mz <- filter_based_on_density(features, turns_mz, 1, i)
+    if (validate_contents(sample_grouped_mz, min_occurrence)) {
+
+      #split according to rt values
+      turns_rt <- find_optima(sample_grouped_mz$rt, bandwidth = rt_tol_relative / 1.414)
+      for (ii in seq_along(turns_rt$peaks)) {
+        sample_grouped_rt <- filter_based_on_density(sample_grouped_mz, turns_rt, 2, ii)
+
+        # create output rows if valid
+        if (validate_contents(sample_grouped_rt, min_occurrence)) {
+          metadata <- dplyr::bind_rows(metadata, create_metadata(sample_grouped_rt, sample_names))
+          intensity <- dplyr::bind_rows(intensity, create_intensity_row(sample_grouped_rt))
+          rt <- dplyr::bind_rows(rt, create_rt_row(sample_grouped_rt))
+        }
+      }
+    }
+  }
+ 
+  return(list(metadata_row = metadata, intensity_row = intensity, rt_row = rt))
 }
 
 #' Combines the output (i.e. metadata, intensity and RT) from different clusters to one respective tibble.
 #' @return Tibbles combining the output (metadata, intensity and RT respectively) from different clusters.
 #' @export
 comb <- function(x, ...) {
-  mapply(tibble::as_tibble, (mapply(rbind, x, ..., SIMPLIFY = FALSE)))
+  mapply(plyr::rbind.fill, x, ..., SIMPLIFY = FALSE)
+}
+
+#' Replace NA values by zero, relocate 'sample_names' column to the very beginning and convert to a tibble
+#' @param x A dataframe
+#' @param sample_names List of sample names.
+#' @return Cleaned tibble.
+clean_data_matrix <- function(x, sample_names) {
+  x %>% replace(is.na(.), 0) %>% dplyr::relocate(sample_names) %>% as_tibble
 }
 
 #' Align peaks from spectra into a feature table.
@@ -180,7 +175,7 @@ comb <- function(x, ...) {
 #' @param rt_tol_relative The retention time tolerance level for peak alignment. The default is NA, which
 #'  allows the program to search for the tolerance level based on the data.
 #' @param cluster The number of CPU cores to be used
-#' @return A tibble with three tables containing aligned metadata, intensities an RTs.
+#' @return A list of 3 tibbles containing aligned metadata, intensities an RTs.
 #'
 #' @export
 create_aligned_feature_table <- function(features_table,
@@ -198,43 +193,28 @@ create_aligned_feature_table <- function(features_table,
     register_functions_to_cluster(cluster)
   }
 
-  number_of_samples <- length(sample_names)
-  metadata_colnames <- c("id", "mz", "mzmin", "mzmax", "rt", "rtmin", "rtmax", "npeaks", sample_names)
-  intensity_colnames <- c("id", sample_names)
-  rt_colnames <- c("id", sample_names)
-
-  aligned_features <- create_empty_tibble(number_of_samples, metadata_colnames, intensity_colnames, rt_colnames)
-
   # table with number of values per group
   groups_cardinality <- table(features_table$cluster)
   # count those with minimal occurrence
   sel.labels <- as.numeric(names(groups_cardinality)[groups_cardinality >= min_occurrence])
 
   # retention time alignment
-
   aligned_features <- foreach::foreach(
     i = seq_along(sel.labels), .combine = "comb", .multicombine = TRUE
   ) %do% {
-    rows <- create_rows(
+    rows <- create_features_from_cluster(
       dplyr::filter(features_table, cluster == sel.labels[i]),
       mz_tol_relative,
       rt_tol_relative,
       min_occurrence,
       sample_names
     )
-
-    if (!is.null(rows)) {
-      rows$metadata_row <- c(i, rows$metadata_row)
-      rows$intensity_row <- c(i, rows$intensity_row)
-      rows$rt_row <- c(i, rows$rt_row)
-    }
-
     list(metadata = rows$metadata_row, intensity = rows$intensity_row, rt = rows$rt_row)
   }
 
-  colnames(aligned_features$metadata) <- metadata_colnames
-  colnames(aligned_features$intensity) <- intensity_colnames
-  colnames(aligned_features$rt) <- rt_colnames
+  aligned_features$intensity <- clean_data_matrix(aligned_features$intensity, sample_names)
+  aligned_features$rt <- clean_data_matrix(aligned_features$rt, sample_names)
+  aligned_features$metadata <- as_tibble(aligned_features$metadata)
 
   return(aligned_features)
 }

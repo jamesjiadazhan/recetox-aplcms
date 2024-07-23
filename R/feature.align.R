@@ -6,7 +6,7 @@
 #' @export
 create_metadata <- function(sample_grouped, sample_names) {
   sample_presence <- sapply(sample_names,
-    FUN=function(x) {
+    FUN = function(x) {
       as.numeric(any(sample_grouped$sample_id == x))
     }
   )
@@ -32,9 +32,9 @@ create_metadata <- function(sample_grouped, sample_names) {
 #' @export
 create_intensity_row <- function(sample_grouped) {
   sample_grouped %>%
-   group_by(sample_id) %>%
-   summarise(intensity = sum(area)) %>%
-   pivot_wider(names_from = "sample_id", values_from = "intensity")
+    group_by(sample_id) %>%
+    summarise(intensity = sum(area)) %>%
+    pivot_wider(names_from = "sample_id", values_from = "intensity")
 }
 
 #' Compute median RT for each sample
@@ -43,9 +43,9 @@ create_intensity_row <- function(sample_grouped) {
 #' @export
 create_rt_row <- function(sample_grouped) {
   sample_grouped %>%
-   group_by(sample_id) %>%
-   summarise(rt = median(rt)) %>%
-   pivot_wider(names_from = "sample_id", values_from = "rt")
+    group_by(sample_id) %>%
+    summarise(rt = median(rt)) %>%
+    pivot_wider(names_from = "sample_id", values_from = "rt")
 }
 
 #' Create a list containing 3 tibbles: metadata, intensities and RTs.
@@ -57,7 +57,7 @@ create_output <- function(sample_grouped, sample_names) {
   metadata_row <- create_metadata(sample_grouped, sample_names)
   intensity_row <- create_intensity_row(sample_grouped)
   rt_row <- create_rt_row(sample_grouped)
-  
+
   return(list(
     metadata_row = metadata_row,
     intensity_row = intensity_row,
@@ -114,10 +114,10 @@ filter_based_on_density <- function(sample, turns, index, i) {
 #' @return A list containing 3 tibbles: metadata, intensities and RTs.
 #' @export
 create_features_from_cluster <- function(features,
-                        mz_tol_relative,
-                        rt_tol_relative,
-                        min_occurrence,
-                        sample_names) {
+                                         mz_tol_relative,
+                                         rt_tol_relative,
+                                         min_occurrence,
+                                         sample_names) {
   if (!validate_contents(features, min_occurrence)) {
     return(NULL)
   }
@@ -132,8 +132,7 @@ create_features_from_cluster <- function(features,
   for (i in seq_along(turns_mz$peaks)) {
     sample_grouped_mz <- filter_based_on_density(features, turns_mz, 1, i)
     if (validate_contents(sample_grouped_mz, min_occurrence)) {
-
-      #split according to rt values
+      # split according to rt values
       turns_rt <- find_optima(sample_grouped_mz$rt, bandwidth = rt_tol_relative / 1.414)
       for (ii in seq_along(turns_rt$peaks)) {
         sample_grouped_rt <- filter_based_on_density(sample_grouped_mz, turns_rt, 2, ii)
@@ -147,7 +146,7 @@ create_features_from_cluster <- function(features,
       }
     }
   }
- 
+
   return(list(metadata_row = metadata, intensity_row = intensity, rt_row = rt))
 }
 
@@ -164,7 +163,10 @@ comb <- function(x, ...) {
 #' @return Cleaned tibble.
 #' @export
 clean_data_matrix <- function(x, sample_names) {
-  x %>% replace(is.na(.), 0) %>% dplyr::relocate(sample_names) %>% as_tibble
+  x %>%
+    replace(is.na(.), 0) %>%
+    dplyr::relocate(sample_names) %>%
+    as_tibble()
 }
 
 #' Align peaks from spectra into a feature table.

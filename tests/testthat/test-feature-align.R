@@ -3,19 +3,7 @@ patrick::with_parameters_test_that(
   {
     testdata <- file.path("..", "testdata")
 
-    ms_files <- lapply(files, function(x) {
-      file.path(testdata, "input", paste0(x, ".mzML"))
-    })
-
-    sample_names <- get_sample_name(unlist(ms_files))
-
-    corrected_files <- lapply(files, function(x) {
-      file.path(testdata, "adjusted", paste0(x, ".parquet"))
-    })
-
-    corrected_features <- lapply(corrected_files, function(x) {
-      arrow::read_parquet(x)
-    })
+    corrected_features <- read_parquet_files(files, "adjusted", ".parquet")
     
     res <- compute_clusters(
         corrected_features,
@@ -67,13 +55,7 @@ patrick::with_parameters_test_that(
   {
     testdata <- file.path("..", "testdata")
 
-    ms_files <- lapply(files, function(x) {
-      file.path(testdata, "clusters", paste0(x, "_adjusted_clusters.parquet"))
-    })
-
-    corrected_features <- lapply(ms_files, function(x) {
-      arrow::read_parquet(x)
-    })
+    corrected_features <- read_parquet_files(files, "clusters", "_adjusted_clusters.parquet")
 
     aligned_actual <- create_aligned_feature_table(
         dplyr::bind_rows(corrected_features),

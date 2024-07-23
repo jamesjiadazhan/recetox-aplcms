@@ -6,9 +6,8 @@ NULL
 compute_comb <- function(template_features, features) {
   combined <- dplyr::bind_rows(
     template_features,
-    dplyr::bind_cols(features |> dplyr::select(c(mz, rt, cluster)), sample_id = features$sample_id)
-  )
-  combined <- combined |> dplyr::arrange_at("mz")
+    features |> dplyr::select(c(mz, rt, cluster, sample_id))
+  ) |> dplyr::arrange_at(c("cluster","mz"))
   return(combined)
 }
 
@@ -38,6 +37,7 @@ compute_template_adjusted_rt <- function(combined, sel, j) {
 #' @export
 compute_corrected_features <- function(features, delta_rt, avg_time) {
   features <- features[order(features$rt, features$mz), ]
+
   corrected <- features$rt
   original <- features$rt
   to_correct <- original[original >= min(delta_rt) &
@@ -90,7 +90,7 @@ correct_time <- function(this.feature, template_features) {
     orig.features <- this.feature
     template <- unique(template_features$sample_id)[1]
     j <- unique(this.feature$sample_id)[1]
-    
+
     if (j != template) {
       this.comb <- compute_comb(template_features, this.feature)
       sel <- compute_sel(this.comb)

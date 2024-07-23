@@ -84,11 +84,15 @@ patrick::with_parameters_test_that(
         get_num_workers()
     )
 
-    aligned_expected <- list(
-      metadata = arrow::read_parquet(file.path(testdata, "aligned", "metadata_table.parquet")),
-      intensity = arrow::read_parquet(file.path(testdata, "aligned", "intensity_table.parquet")),
-      rt = arrow::read_parquet(file.path(testdata, "aligned", "rt_table.parquet"))
+    aligned_expected <- load_aligned_features(
+      file.path(testdata, "aligned", "metadata_table.parquet"),
+      file.path(testdata, "aligned", "intensity_table.parquet"),
+      file.path(testdata, "aligned", "rt_table.parquet"),
+      file.path(testdata, "aligned", "tolerances.parquet")
     )
+
+    aligned_expected["mz_tol_relative"] <- NULL
+    aligned_expected["rt_tol_relative"] <- NULL
 
     expect_equal(aligned_actual, aligned_expected)
   },

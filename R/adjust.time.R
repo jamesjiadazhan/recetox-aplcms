@@ -34,29 +34,60 @@ compute_template_adjusted_rt <- function(combined, sel, j) {
   return(all_features)
 }
 
-#' @export
-compute_corrected_features <- function(features, delta_rt, avg_time) {
-  features <- features[order(features$rt, features$mz), ]
+compute_corrected_features_v2 <- function(features, template_rt, delta_rt) {
+  features <- features |> dplyr::arrange_at(c("rt", "mz"))
+  idx <- dplyr::between(features$rt, min(template_rt), max(template_rt))
+  to_correct <- (features |> dplyr::filter(idx))$rt
 
-  corrected <- features$rt
-  original <- features$rt
-  to_correct <- original[original >= min(delta_rt) &
-    original <= max(delta_rt)]
-
-  this.smooth <- ksmooth(delta_rt, avg_time,
+  this.smooth <- ksmooth(
+    template_rt,
+    delta_rt,
     kernel = "normal",
     bandwidth = (max(delta_rt) - min(delta_rt)) / 5,
     x.points = to_correct
   )
 
-  corrected[dplyr::between(original, min(delta_rt), max(delta_rt))] <-
-    this.smooth$y + to_correct
-  corrected[original < min(delta_rt)] <- corrected[original < min(delta_rt)] +
-    mean(this.smooth$y[this.smooth$x == min(this.smooth$x)])
-  corrected[original > max(delta_rt)] <- corrected[original > max(delta_rt)] +
-    mean(this.smooth$y[this.smooth$x == max(this.smooth$x)])
+  lower_bound_adjustment <- mean(this.smooth$y[this.smooth$x == min(this.smooth$x)])
+  upper_bound_adjustment <- mean(this.smooth$y[this.smooth$x == max(this.smooth$x)])
+
+  features <- features |>
+    dplyr::mutate(rt = dplyr::case_when(
+      rt < min(template_rt) ~ rt + lower_bound_adjustment,
+      rt > max(template_rt) ~ rt + upper_bound_adjustment
+    ))
+  features[idx, "rt"] <- to_correct + this.smooth$y
+  return(features |> dplyr::arrange_at(c("mz", "rt")))
+}
+
+#' @export
+compute_corrected_features <- function(features, delta_rt, avg_time) {
+  features <- features |> dplyr::arrange_at(c("rt", "mz"))
+
+  corrected <- features$rt
+  original <- features$rt
+
+  idx <- dplyr::between(original, min(delta_rt), max(delta_rt))
+  to_correct <- original[idx]
+  this.smooth <- ksmooth(
+    delta_rt,
+    avg_time,
+    kernel = "normal",
+    bandwidth = (max(delta_rt) - min(delta_rt)) / 5,
+    x.points = to_correct
+  )
+
+  corrected[idx] <- this.smooth$y + to_correct
+  lower_bound_adjustment <- mean(this.smooth$y[this.smooth$x == min(this.smooth$x)])
+  upper_bound_adjustment <- mean(this.smooth$y[this.smooth$x == max(this.smooth$x)])
+
+  idx_lower <- original < min(delta_rt)
+  idx_upper <- original > max(delta_rt)
+
+  corrected[idx_lower] <- corrected[idx_lower] + lower_bound_adjustment
+  corrected[idx_upper] <- corrected[idx_upper] + upper_bound_adjustment
   features$rt <- corrected
   features <- features[order(features$mz, features$rt), ]
+
   return(features)
 }
 
@@ -74,18 +105,6 @@ fill_missing_values <- function(orig.feature, this.feature) {
 }
 
 #' @export
-compute_template <- function(extracted_features) {
-  num.ftrs <- sapply(extracted_features, nrow)
-  template_id <- which.max(num.ftrs)
-  template <- extracted_features[[template_id]]$sample_id[1]
-  message(paste("the template is sample", template))
-
-  candi <- tibble::as_tibble(extracted_features[[template_id]]) |> dplyr::select(c(mz, rt, cluster))
-  template_features <- dplyr::bind_cols(candi, sample_id = rep(template, nrow(candi)))
-  return(tibble::as_tibble(template_features))
-}
-
-#' @export
 correct_time <- function(this.feature, template_features) {
     orig.features <- this.feature
     template <- unique(template_features$sample_id)[1]
@@ -99,11 +118,12 @@ correct_time <- function(this.feature, template_features) {
         stop("too few, aborted")
       } else {
         all.ftr.table <- compute_template_adjusted_rt(this.comb, sel, j)
-        # the to be adjusted time
-        this.diff <- all.ftr.table[, 2]
-        # the difference between the true time and the to-be-adjusted time
-        avg_time <- all.ftr.table[, 1] - this.diff
-        this.feature <- compute_corrected_features(this.feature, this.diff, avg_time)
+
+        this.feature <- compute_corrected_features(
+          this.feature,
+          all.ftr.table[, 2],  # the to be adjusted time
+          all.ftr.table[, 1] - all.ftr.table[, 2]  # the difference between the true time and the to-be-adjusted time
+        )
       }
     }
 
@@ -115,6 +135,48 @@ correct_time <- function(this.feature, template_features) {
     }
 
   return(tibble::as_tibble(this.feature, column_name = c("mz", "rt", "sd1", "sd2", "area", "sample_id", "cluster")))
+}
+
+#' @export
+compute_template <- function(extracted_features) {
+  num.ftrs <- sapply(extracted_features, nrow)
+  template_id <- which.max(num.ftrs)
+  template <- extracted_features[[template_id]]$sample_id[1]
+  message(paste("the template is sample", template))
+
+  candi <- tibble::as_tibble(extracted_features[[template_id]]) |> dplyr::select(c(mz, rt, cluster))
+  template_features <- dplyr::bind_cols(candi, sample_id = rep(template, nrow(candi)))
+  return(tibble::as_tibble(template_features))
+}
+
+correct_time_v2 <- function(features, template) {
+  if (unique(features$sample_id) == unique(template$sample_id))
+    return(tibble::as_tibble(features))
+
+  subsets <- template |>
+    dplyr::bind_rows(
+      features |> dplyr::select(c(mz, rt, cluster, sample_id))
+    ) |>
+    dplyr::arrange_at(c("cluster", "mz")) |>
+    dplyr::group_by(cluster) |>
+    dplyr::mutate(count = dplyr::n_distinct(sample_id)) |>
+    filter(count == 2) |>
+    dplyr::add_count() |>
+    filter(n == 2) |>
+    dplyr::ungroup() |>
+    dplyr::group_by(sample_id) |>
+    dplyr::group_split()
+
+  all_features_new <- cbind(subsets[[1]]$rt, subsets[[2]]$rt)
+  all_features_new_order <- order(all_features_new[, 2])
+  all_features_new_arranged <- all_features_new[all_features_new_order,]
+
+  corrected <- compute_corrected_features_v2(
+    features,
+    all_features_new_arranged[, 2],
+    all_features_new_arranged[, 1] - all_features_new_arranged[, 2]
+  )
+  return(tibble::as_tibble(corrected))
 }
 
 #' Adjust retention time across spectra.

@@ -3,6 +3,7 @@
 #' Create a metadata row tibble with min, max and mean mz and RT values.
 #' @param sample_grouped A dataframe with grouped mz and RT values for a particular cluster.
 #' @param sample_names A list of sample names.
+#' @export
 create_metadata <- function(sample_grouped, sample_names) {
   sample_presence <- sapply(sample_names,
     FUN=function(x) {
@@ -28,6 +29,7 @@ create_metadata <- function(sample_grouped, sample_names) {
 #' Compute summed area for each sample
 #' @param sample_grouped A dataframe with grouped mz and RT values for a particular cluster.
 #' @return Summed area for each sample.
+#' @export
 create_intensity_row <- function(sample_grouped) {
   sample_grouped %>%
    group_by(sample_id) %>%
@@ -38,7 +40,7 @@ create_intensity_row <- function(sample_grouped) {
 #' Compute median RT for each sample
 #' @param sample_grouped A dataframe with grouped mz and RT values for a particular cluster.
 #' @return Median RT for each sample.
-
+#' @export
 create_rt_row <- function(sample_grouped) {
   sample_grouped %>%
    group_by(sample_id) %>%
@@ -160,6 +162,7 @@ comb <- function(x, ...) {
 #' @param x A dataframe
 #' @param sample_names List of sample names.
 #' @return Cleaned tibble.
+#' @export
 clean_data_matrix <- function(x, sample_names) {
   x %>% replace(is.na(.), 0) %>% dplyr::relocate(sample_names) %>% as_tibble
 }

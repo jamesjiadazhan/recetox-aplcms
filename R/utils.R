@@ -45,15 +45,17 @@ register_functions_to_cluster <- function(cluster) {
         'compute_uniq_grp',
         'predict_smoothed_rt',
         'label_val_to_keep',
-        "create_empty_tibble",
-        "create_rows",
+        "create_features_from_cluster",
         "validate_contents",
-        "select_mz",
-        "select_rt",
         "find_optima",
         "filter_based_on_density",
         "create_output",
+        "create_metadata",
+        "create_rt_row",
+        "create_intensity_row",
         "comb",
+        "clean_data_matrix",
+        "create_aligned_feature_table",
         'bigauss.esti.EM',
         'solve_sigma',
         'prep_uv',
@@ -111,9 +113,9 @@ load_aligned_features <- function(metadata_file, intensities_file, rt_file, tol_
     tolerances <- arrow::read_parquet(tol_file)
     
     result <- list()
-    result$metadata <- as_tibble(metadata)
-    result$intensity <- as_tibble(intensities)
-    result$rt <- as_tibble(rt)
+    result$metadata <- as_tibble(metadata) |> select(-id)
+    result$intensity <- as_tibble(intensities) |> select(-id)
+    result$rt <- as_tibble(rt) |> select(-id)
     result$mz_tol_relative <- tolerances$mz_tolerance
     result$rt_tol_relative <- tolerances$rt_tolerance
     return(result)

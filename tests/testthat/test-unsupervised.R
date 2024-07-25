@@ -9,8 +9,6 @@ patrick::with_parameters_test_that(
 
     test_files <- sapply(files, function(x) file.path("../testdata/input", x))
 
-    expected <- arrow::read_parquet(file.path("../testdata/unsupervised", paste0(.test_name, "_unsupervised.parquet")))
-
     result <- unsupervised(test_files, cluster = get_num_workers())
     keys <- c("mz", "rt", "sample", "sample_rt", "sample_intensity")
     actual <- as_tibble(result$recovered_feature_sample_table)
@@ -32,7 +30,8 @@ patrick::with_parameters_test_that(
       )
     }
 
-    # arrow::write_parquet(actual, file.path("../testdata/unsupervised", paste0(.test_name, "_unsupervised_new.parquet")))
+    # arrow::write_parquet(actual, file.path("../testdata/unsupervised", paste0(.test_name, "_unsupervised.parquet")))
+    expected <- arrow::read_parquet(file.path("../testdata/unsupervised", paste0(.test_name, "_unsupervised.parquet")))
 
     expect_equal(actual, expected)
   },

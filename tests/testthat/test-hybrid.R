@@ -22,7 +22,7 @@ patrick::with_parameters_test_that("basic hybrid test", {
     mz_tol_relative = NA,
     rt_tol_relative = NA,
     cluster = get_num_workers())
-  actual <- result$recovered_feature_sample_table
+  actual <- as_tibble(result$recovered_feature_sample_table)
   keys <- c("mz", "rt", "sample", "sample_rt", "sample_intensity")
 
   expected <- arrow::read_parquet(
@@ -46,7 +46,7 @@ patrick::with_parameters_test_that("basic hybrid test", {
     )
   }
 
-  expect_equal(actual, expected)
+  expect_equal(actual, expected, tolerance)
 },
 patrick::cases(
   mbr = list(

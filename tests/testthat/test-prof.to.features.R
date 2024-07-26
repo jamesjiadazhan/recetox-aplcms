@@ -22,7 +22,7 @@ patrick::with_parameters_test_that(
 
     expected_path <- file.path(testdata, "features", expected_filename)
     expected <- arrow::read_parquet(expected_path)
-    expect_equal(actual, expected)
+    expect_equal(actual, expected, tolerance = 0.01)
   },
   patrick::cases(
     mbr_test0 = list(

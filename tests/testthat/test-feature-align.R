@@ -1,3 +1,9 @@
+update_expected <- function(actual) {
+  arrow::write_parquet(actual$metadata, file.path("..", "testdata", "aligned", "metadata_table.parquet"))
+  arrow::write_parquet(actual$intensity, file.path("..", "testdata", "aligned", "intensity_table.parquet"))
+  arrow::write_parquet(actual$rt, file.path("..", "testdata", "aligned", "rt_table.parquet"))
+}
+
 patrick::with_parameters_test_that(
   "feature.align test",
   {

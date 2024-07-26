@@ -30,9 +30,9 @@ create_metadata <- function(sample_grouped, sample_names) {
 #' @export
 create_intensity_row <- function(sample_grouped) {
   sample_grouped %>%
-    group_by(sample_id) %>%
-    summarise(intensity = sum(area)) %>%
-    pivot_wider(names_from = "sample_id", values_from = "intensity")
+    dplyr::group_by(sample_id) %>%
+    dplyr::summarise(intensity = sum(area)) %>%
+    tidyr::pivot_wider(names_from = "sample_id", values_from = "intensity")
 }
 
 #' Compute median RT for each sample
@@ -41,9 +41,9 @@ create_intensity_row <- function(sample_grouped) {
 #' @export
 create_rt_row <- function(sample_grouped) {
   sample_grouped %>%
-    group_by(sample_id) %>%
-    summarise(rt = median(rt)) %>%
-    pivot_wider(names_from = "sample_id", values_from = "rt")
+    dplyr::group_by(sample_id) %>%
+    dplyr::summarise(rt = median(rt)) %>%
+    tidyr::pivot_wider(names_from = "sample_id", values_from = "rt")
 }
 
 #' Create a list containing 3 tibbles: metadata, intensities and RTs.
@@ -161,10 +161,21 @@ comb <- function(x, ...) {
 #' @return Cleaned tibble.
 #' @export
 clean_data_matrix <- function(x, sample_names) {
-  x %>%
+  x <- x %>%
     replace(is.na(.), 0) %>%
-    dplyr::relocate(sample_names) %>%
-    as_tibble()
+    dplyr::relocate(sample_names) |>
+    add_feature_ids()
+  return(x)
+}
+
+#' Add `id` column to a dataframe
+#' @param x A dataframe
+#' @return The same dataframe but with an additional `id` column 
+#' in first place which contains the rownames.
+#' @export
+add_feature_ids <- function(x) {
+  x$id <- as.numeric(rownames(x))
+  return(tibble::as_tibble(x |> dplyr::relocate(id)))
 }
 
 #' Align peaks from spectra into a feature table.
@@ -217,7 +228,7 @@ create_aligned_feature_table <- function(features_table,
 
   aligned_features$intensity <- clean_data_matrix(aligned_features$intensity, sample_names)
   aligned_features$rt <- clean_data_matrix(aligned_features$rt, sample_names)
-  aligned_features$metadata <- as_tibble(aligned_features$metadata)
+  aligned_features$metadata <- add_feature_ids(aligned_features$metadata)
 
   return(aligned_features)
 }

@@ -2,6 +2,10 @@
 NULL
 #> NULL
 
+#' Combine template and sample features
+#' @param template_features Tibble Template feature table (mz, rt, cluster, sample_id).
+#' @param features Tibble Sample feature table (mz, rt, cluster, sample_id).
+#' @return Tibble Combined feature table (rbind).
 #' @export
 compute_comb <- function(template_features, features) {
   combined <- dplyr::bind_rows(
@@ -11,6 +15,12 @@ compute_comb <- function(template_features, features) {
   return(combined)
 }
 
+#' Select features to use for retention time alignment
+#' @description This function selects features present in both the sample
+#' feature table and template feature table given they have the same cluster,
+#' are adjacent in the combined table.
+#' @param combined Tibble Table with (mz, rt, cluster, sample_id).
+#' @return List of bool Returns list of bools with TRUE at each index where this condition is met.
 #' @export
 compute_sel <- function(combined) {
   l <- nrow(combined)
@@ -19,6 +29,11 @@ compute_sel <- function(combined) {
   return(sel)
 }
 
+#' Create two column table with paired sample and template retention times.
+#' @param combined Tibble Table with features from sample and template.
+#' @param sel list of bools List of bools indiciating which features to pair.
+#' See 'compute_sel'.
+#' @param j string Template sample_id.
 #' @export
 compute_template_adjusted_rt <- function(combined, sel, j) {
   all_features <- cbind(combined$rt[sel], combined$rt[sel + 1])
@@ -59,20 +74,25 @@ compute_corrected_features_v2 <- function(features, template_rt, delta_rt) {
   return(features |> dplyr::arrange_at(c("mz", "rt")))
 }
 
+#' Correct the rt in feature table based on paired feature rts and differences.
+#' @param features Tibble The feature table for which to correct rts.
+#' @param template_rt List of floats Template retention times for the paired features.
+#' @param delta_rt List of floats Differences between the paired rts.
+#' @return Tibble A table with corrected retention times.
 #' @export
-compute_corrected_features <- function(features, delta_rt, avg_time) {
+compute_corrected_features <- function(features, template_rt, delta_rt) {
   features <- features |> dplyr::arrange_at(c("rt", "mz"))
 
   corrected <- features$rt
   original <- features$rt
 
-  idx <- dplyr::between(original, min(delta_rt), max(delta_rt))
+  idx <- dplyr::between(original, min(template_rt), max(template_rt))
   to_correct <- original[idx]
   this.smooth <- ksmooth(
+    template_rt,
     delta_rt,
-    avg_time,
     kernel = "normal",
-    bandwidth = (max(delta_rt) - min(delta_rt)) / 5,
+    bandwidth = (max(template_rt) - min(template_rt)) / 5,
     x.points = to_correct
   )
 
@@ -80,8 +100,8 @@ compute_corrected_features <- function(features, delta_rt, avg_time) {
   lower_bound_adjustment <- mean(this.smooth$y[this.smooth$x == min(this.smooth$x)])
   upper_bound_adjustment <- mean(this.smooth$y[this.smooth$x == max(this.smooth$x)])
 
-  idx_lower <- original < min(delta_rt)
-  idx_upper <- original > max(delta_rt)
+  idx_lower <- original < min(template_rt)
+  idx_upper <- original > max(template_rt)
 
   corrected[idx_lower] <- corrected[idx_lower] + lower_bound_adjustment
   corrected[idx_upper] <- corrected[idx_upper] + upper_bound_adjustment
@@ -149,6 +169,7 @@ compute_template <- function(extracted_features) {
   return(tibble::as_tibble(template_features))
 }
 
+#' @export
 correct_time_v2 <- function(features, template) {
   if (unique(features$sample_id) == unique(template$sample_id))
     return(tibble::as_tibble(features))

@@ -2,6 +2,13 @@
 NULL
 #> NULL
 
+#' Read the metadata table, retention time data matrix and intensity data matrix
+#' and combine them into a single table
+#' @param metadata Tibble Feature metadata table with information concerning the peaks.
+#' @param rt_crosstab Tibble Data matrix with features on rows and samples on columns holding rt data.
+#' @param int_crosstab Tibble Data matrix with features on rows and samples on columns holding intensity data.
+#' @return Tibble A merged table containing all information.
+#' @export 
 as_feature_sample_table <- function(metadata, rt_crosstab, int_crosstab) {
   feature_names <- as.character(rt_crosstab$id)
   sample_names <- colnames(metadata)[-c(1:8)]
@@ -27,6 +34,9 @@ as_feature_sample_table <- function(metadata, rt_crosstab, int_crosstab) {
   return(data)
 }
 
+#' Check files whether they exist.
+#' @param filenames list of filenames Filenames to check whether they exist.
+#' @export
 check_files <- function(filenames) {
   missing <- !file.exists(filenames)
   missing_filenames <- paste0('\t', filenames[missing], collapse = '\n')
@@ -36,6 +46,10 @@ check_files <- function(filenames) {
   }
 }
 
+#' Get the sample name as basename of the file.
+#' @param filename string Name of the file.
+#' @return string Sample name.
+#' @export
 get_sample_name <- function(filename) {
   tools::file_path_sans_ext(basename(filename))
 }

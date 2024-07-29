@@ -25,6 +25,7 @@ patrick::with_parameters_test_that("basic hybrid test", {
   actual <- as_tibble(result$recovered_feature_sample_table)
   keys <- c("mz", "rt", "sample", "sample_rt", "sample_intensity")
 
+  # arrow::write_parquet(actual, file.path(testdata, "hybrid", paste0(.test_name, "_recovered_feature_sample_table.parquet")))
   expected <- arrow::read_parquet(
     file.path(testdata, "hybrid", paste0(.test_name, "_recovered_feature_sample_table.parquet"))
   )

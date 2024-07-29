@@ -18,4 +18,5 @@ dependencies:
   - r-tidyr
   - r-stringr
   - r-tibble
+  - r-plyr
 

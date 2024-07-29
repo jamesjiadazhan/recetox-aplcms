@@ -13,7 +13,8 @@ remove_noise(
   baseline_correct_noise_percentile,
   intensity_weighted,
   do.plot,
-  cache
+  cache,
+  grouping_threshold = Inf
 )
 }
 \arguments{
@@ -40,6 +41,8 @@ run filter, to be used as the baseline threshold of signal strength.}
 \item{do.plot}{Indicates whether plot should be drawn.}
 
 \item{cache}{Whether to use cache}
+
+\item{grouping_threshold}{The maximum difference between two scans to be considered the same EIC. Default is Inf.}
 }
 \value{
 A matrix with four columns: m/z value, retention time, intensity, and group number.

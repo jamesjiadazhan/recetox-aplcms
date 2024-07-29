@@ -7,7 +7,7 @@
 compute_clusters_simple(feature_tables, sample_names, mz_tol_ppm, rt_tol)
 }
 \arguments{
-\item{feature_tables}{list of tibbles List of feature tables coming from all samples.}
+\item{feature_tables}{list of tibbles feature tables coming from all samples.}
 
 \item{sample_names}{list of strings Sample names of the feature tables used to distinguish the samples.}
 

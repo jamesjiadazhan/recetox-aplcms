@@ -8,6 +8,7 @@ register_functions_to_cluster <- function(cluster) {
         'prof.to.features',
         'load.lcms',
         'adaptive.bin',
+        'add_feature_ids',
         'find.turn.point',
         'msExtrema',
         'find_local_maxima',
@@ -45,14 +46,17 @@ register_functions_to_cluster <- function(cluster) {
         'compute_uniq_grp',
         'predict_smoothed_rt',
         'label_val_to_keep',
-        "create_rows",
+        "create_features_from_cluster",
         "validate_contents",
-        "select_mz",
-        "select_rt",
         "find_optima",
         "filter_based_on_density",
         "create_output",
+        "create_metadata",
+        "create_rt_row",
+        "create_intensity_row",
         "comb",
+        "clean_data_matrix",
+        "create_aligned_feature_table",
         'bigauss.esti.EM',
         'solve_sigma',
         'prep_uv',
@@ -81,7 +85,10 @@ register_functions_to_cluster <- function(cluster) {
         'get_mzrange_bound_indices',
         'compute_mass_density',
         'l2normalize',
-        'compute_peaks_and_valleys'
+        'compute_peaks_and_valleys',
+        'as_feature_sample_table',
+        'check_files',
+        'get_sample_name'
     ))
     snow::clusterEvalQ(cluster, library("dplyr"))
     snow::clusterEvalQ(cluster, library("stringr"))

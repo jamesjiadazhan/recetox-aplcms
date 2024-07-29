@@ -30,7 +30,7 @@ percentage of the m/z value. This value, multiplied by the m/z value, becomes th
 \item{cluster}{The number of CPU cores to be used}
 }
 \value{
-A tibble with three tables containing aligned metadata, intensities an RTs.
+A list of 3 tibbles containing aligned metadata, intensities an RTs.
 }
 \description{
 Align peaks from spectra into a feature table.

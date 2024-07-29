@@ -49,6 +49,13 @@ compute_template_adjusted_rt <- function(combined, sel, j) {
   return(all_features)
 }
 
+#' Correct the rt in feature table based on paired feature rts and differences.
+#' @description This is a newer implementation based on dplyr which might be more efficient than the other function.
+#' @param features Tibble The feature table for which to correct rts.
+#' @param template_rt List of floats Template retention times for the paired features.
+#' @param delta_rt List of floats Differences between the paired rts.
+#' @return Tibble A table with corrected retention times.
+#' @export
 compute_corrected_features_v2 <- function(features, template_rt, delta_rt) {
   features <- features |> dplyr::arrange_at(c("rt", "mz"))
   idx <- dplyr::between(features$rt, min(template_rt), max(template_rt))
@@ -111,6 +118,10 @@ compute_corrected_features <- function(features, template_rt, delta_rt) {
   return(features)
 }
 
+#' Fill missing values based on original retention times.
+#' @param orig.features Non-corrected feature table.
+#' @param this.features Feature table with eventual missing values.
+#' @return Tibble Feature table with filles values.
 #' @export
 fill_missing_values <- function(orig.feature, this.feature) {
   missing_values <- which(is.na(this.feature$rt))
@@ -124,6 +135,10 @@ fill_missing_values <- function(orig.feature, this.feature) {
   return(this.feature)
 }
 
+#' Function to perform retention time correction
+#' @param this.feature Tibble Feature table for which to correct rt.
+#' @param template_features Tibble Template feature table to use for correction.
+#' @return Tibble this.feature table with corrected rt values.
 #' @export
 correct_time <- function(this.feature, template_features) {
     orig.features <- this.feature
@@ -157,6 +172,10 @@ correct_time <- function(this.feature, template_features) {
   return(tibble::as_tibble(this.feature, column_name = c("mz", "rt", "sd1", "sd2", "area", "sample_id", "cluster")))
 }
 
+#' Select the template feature table.
+#' @description The current implementation selects the table with the most features as the template.
+#' @param extracted_features List of tables Tables from which to select the template.
+#' @return Tibble Template feature table.
 #' @export
 compute_template <- function(extracted_features) {
   num.ftrs <- sapply(extracted_features, nrow)
@@ -169,6 +188,13 @@ compute_template <- function(extracted_features) {
   return(tibble::as_tibble(template_features))
 }
 
+#' Rewritten version of 'correct_time'
+#' @description This function uses dplyr to do the same as
+#' 'correct_time', just with less code. Most functions used in the original
+#' function are replaced with simple data transformations.
+#' @param features Tibble Table with features to correct.
+#' @param template Tibble Template feature table to use for correction.
+#' @return Tibble Corrected feature table.
 #' @export
 correct_time_v2 <- function(features, template) {
   if (unique(features$sample_id) == unique(template$sample_id))

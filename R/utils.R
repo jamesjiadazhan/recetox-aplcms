@@ -125,13 +125,21 @@ load_aligned_features <- function(metadata_file, intensities_file, rt_file, tol_
     return(result)
 }
 
+#' Calculate the span of a numeric vector.
+#' @description
+#' This function calculates the span (range) of a numeric vector, ignoring NA values.
+#' @param x A numeric vector.
+#' @return A numeric value representing the span of the vector.
 #' @export
 span <- function(x) {
     diff(range(x, na.rm = TRUE))
 }
 
+#' Compute standard deviation of m/z values for feature groups.
 #' @description
-#' Compute standard deviation of m/z values groupwise
+#' This function computes the standard deviation of m/z values for each group of features.
+#' @param feature_groups A list of data frames, where each data frame represents a group of features with m/z values.
+#' @return A numeric vector of standard deviations of m/z values for each feature group.
 #' @export
 compute_mz_sd <- function(feature_groups) {
     mz_sd <- c()
@@ -146,6 +154,10 @@ compute_mz_sd <- function(feature_groups) {
     return(mz_sd)
 }
 
+#' Get the number of available worker cores.
+#' @description
+#' This function determines the number of available worker cores, taking into account CRAN's limit on the number of cores.
+#' @return An integer representing the number of available worker cores.
 #' @export
 get_num_workers <- function() {
     # CRAN limits the number of cores available to packages to 2

@@ -1,7 +1,14 @@
-#' @import tibble dplyr
-NULL
-#> NULL
-
+#' Compute densities for given masses.
+#' @description
+#' Compute the density estimation for a set of masses using kernel density estimation.
+#' It allows for intensity-weighted densities and custom bandwidth functions.
+#' @param masses A numeric vector of mass values.
+#' @param mz_tol The mass-to-charge ratio tolerance.
+#' @param intensity_weighted A logical value indicating whether to weight the densities by intensities.
+#' @param intensities A numeric vector of intensity values corresponding to the masses.
+#' @param bw_func A function to compute the bandwidth based on the masses.
+#' @param n The number of equally spaced points at which the density is to be estimated. Default is 512.
+#' @return A density object representing the estimated density of the masses.
 #' @export
 compute_densities <- function(masses, mz_tol, intensity_weighted, intensities, bw_func, n = 512) {
   bandwidth <- 0.5 * mz_tol * bw_func(masses)
@@ -14,6 +21,15 @@ compute_densities <- function(masses, mz_tol, intensity_weighted, intensities, b
   return(all.mass.den)
 }
 
+#' Compute mass values based on kernel density estimation.
+#' @description
+#' This function computes the mass values by performing kernel density estimation on the given masses.
+#' It identifies the valleys in the density plot to determine the mass values.
+#' @param mz_tol The mass-to-charge ratio tolerance.
+#' @param masses A numeric vector of mass values.
+#' @param intensity_binned A numeric vector of binned intensity values corresponding to the masses.
+#' @param intensity_weighted A logical value indicating whether to weight the densities by intensities.
+#' @return A numeric vector of mass values corresponding to the valleys in the density plot.
 #' @export
 compute_mass_values <- function(mz_tol, masses, intensity_binned, intensity_weighted) {
   n <- 2^min(15, floor(log2(length(masses))) - 2)
@@ -33,6 +49,12 @@ compute_breaks <- function(mz_tol, masses, intensity_binned, intensity_weighted)
 }
 
 
+#' Increment pointers in a list.
+#' @description
+#' This function increments the values of `prof.pointer`, `height.pointer`, and `curr.label` in the provided list of pointers.
+#' @param pointers A list containing the pointers to be incremented.
+#' @param that.n An integer value to increment the `prof.pointer`.
+#' @return The updated list of pointers.
 #' @export
 increment_counter <- function(pointers, that.n){
   pointers$prof.pointer <- pointers$prof.pointer + that.n

@@ -14,6 +14,17 @@ tolerance_plot <- function(x, y, exp_y, selected, main) {
   abline(v = x[selected], col = "blue")
 }
 
+#' Draw retention time normal peaks.
+#' @description
+#' This function draws the normal peaks for retention time data based on the provided parameters.
+#' @param x A numeric vector of retention time values.
+#' @param truth A numeric vector containing the parameters for the normal peaks:
+#' \itemize{
+#'   \item mean of the peak
+#'   \item standard deviation for the left side of the peak
+#'   \item standard deviation for the right side of the peak
+#'   \item scaling factor for the peak height
+#' }
 #' @export
 draw_rt_normal_peaks <- function(x, truth) {
   true.y1 <- dnorm(x[x < truth[1]], mean = truth[1], sd = truth[2]) * truth[2] * truth[4]
@@ -21,6 +32,15 @@ draw_rt_normal_peaks <- function(x, truth) {
   lines(x, c(true.y1, true.y2), col = "green")
 }
 
+#' Plot raw profile histogram.
+#' @description
+#' This function plots various histograms and density plots for a given raw profile, including noise groups, selected groups, retention time range distribution, and signal presence distribution.
+#' @param raw.prof A list containing raw profile data, including height records and minimum count run.
+#' @param min_pres A numeric value indicating the minimum presence threshold.
+#' @param baseline.correct A numeric value for baseline correction. If NA, it will be computed automatically.
+#' @param baseline.correct.noise.percentile A numeric value indicating the percentile of noise group heights for baseline correction.
+#' @param mz_tol A numeric value for the mass-to-charge ratio tolerance.
+#' @param new.prof A list containing new profile data, including height records, time range records, and m/z presence records.
 #' @export
 plot_raw_profile_histogram <- function(raw.prof,
                                        min_pres,
@@ -80,6 +100,11 @@ plot_raw_profile_histogram <- function(raw.prof,
   )
 }
 
+#' Plot peak summary.
+#' @description
+#' This function plots a summary of peak characteristics, including m/z standard deviation, retention time standard deviation, and peak strength.
+#' @param feature_groups A list of data frames, where each data frame represents a group of features with m/z values.
+#' @param processed_features A data frame containing processed feature information with columns "sd1", "sd2", and "area".
 #' @export
 plot_peak_summary <- function(feature_groups, processed_features) {
   mz_sd <- compute_mz_sd(feature_groups)
@@ -92,6 +117,13 @@ plot_peak_summary <- function(feature_groups, processed_features) {
   hist(log10(processed_features[, "area"]), xlab = "peak strength (log scale)", ylab = "Frequency", main = "Peak strength distribution")
 }
 
+#' Plot retention time profile.
+#' @description
+#' This function plots the retention time profile, including the base curve, intensity, and fitted components.
+#' @param rt_profile A data frame containing the retention time profile with columns "base_curve" and "intensity".
+#' @param bw The bandwidth used for the kernel density estimation.
+#' @param fit A matrix containing the fitted components for the retention time profile.
+#' @param m A numeric vector of positions where vertical lines should be drawn.
 #' @export
 plot_rt_profile <- function(rt_profile, bw, fit, m) {
   plot(rt_profile[, "base_curve"], rt_profile[, "intensity"], cex = .1, main = paste("bw=", bw))
@@ -105,6 +137,18 @@ plot_rt_profile <- function(rt_profile, bw, fit, m) {
   }
 }
 
+#' Plot normalized mixture model with BIC.
+#' @description
+#' This function plots the data points and the fitted Gaussian mixture model components with different bandwidths.
+#' @param x A numeric vector of data points on the x-axis.
+#' @param y A numeric vector of data points on the y-axis.
+#' @param bw The bandwidth used for the kernel density estimation.
+#' @param aaa A matrix containing the parameters of the Gaussian mixture model components:
+#' \itemize{
+#'   \item mean of the Gaussian component
+#'   \item standard deviation of the Gaussian component
+#'   \item scaling factor for the Gaussian component
+#' }
 #' @export
 plot_normix_bic <- function(x, y, bw, aaa) {
   plot(x, y, cex = .1, main = paste("bw=", bw))
@@ -116,6 +160,14 @@ plot_normix_bic <- function(x, y, bw, aaa) {
   }
 }
 
+#' Draw retention time correction plot.
+#' @description
+#' This function draws a plot showing the retention time correction for extracted features.
+#' It plots the deviation of corrected retention times from the original retention times.
+#' @param colors A character vector of colors to use for plotting each sample. If NA, default colors are used.
+#' @param extracted_features A list of data frames, where each data frame contains the original retention times and m/z values of features.
+#' @param corrected_features A list of data frames, where each data frame contains the corrected retention times of features.
+#' @param rt_tol_relative A numeric value representing the relative retention time tolerance.
 #' @export
 draw_rt_correction_plot <- function(colors,
                                     extracted_features,

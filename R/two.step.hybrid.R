@@ -102,6 +102,12 @@ wide_to_long_feature_table <- function(wide_table, sample_names) {
   return(long_features)
 }
 
+#' Extract column names matching a pattern.
+#' @description
+#' This function extracts the column names from a dataframe that contain a specified pattern.
+#' @param dataframe A dataframe from which to extract column names.
+#' @param pattern A character string containing the pattern to match in the column names.
+#' @return A character vector of column names that match the specified pattern.
 extract_pattern_colnames <- function(dataframe, pattern) {
   dataframe <- dplyr::select(dataframe, contains(pattern))
   return(colnames(dataframe))

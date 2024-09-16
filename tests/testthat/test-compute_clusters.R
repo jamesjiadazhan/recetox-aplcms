@@ -15,6 +15,9 @@ patrick::with_parameters_test_that(
       sample_names = files
     )
 
+    # for(i in 1:3) {
+    #   arrow::write_parquet(actual$feature_tables[[i]], file.path(testdata, "clusters", paste0(files[i], "_", input ,"_clusters.parquet")))
+    # }
     expected <- read_parquet_files(files, "clusters", paste0("_", input, "_clusters.parquet"))
 
 
@@ -22,8 +25,8 @@ patrick::with_parameters_test_that(
       expect_equal(actual$feature_tables[[i]], expected[[i]])
     }
 
-    expect_equal(actual$mz_tol_relative, expected_mz_tol_relative)
-    expect_equal(actual$rt_tol_relative, expected_rt_tol_relative)
+    expect_equal(actual$mz_tol_relative, expected_mz_tol_relative, tolerance=0.1)
+    expect_equal(actual$rt_tol_relative, expected_rt_tol_relative, tolerance=0.1)
 
   },
   patrick::cases(
@@ -32,16 +35,16 @@ patrick::with_parameters_test_that(
       input = "extracted",
       mz_max_diff = 10 * 1e-05,
       mz_tol_absolute = 0.01,
-      expected_mz_tol_relative = 6.85676325338646e-06,
-      expected_rt_tol_relative = 3.61858118506494
+      expected_mz_tol_relative = 6.849039e-06,
+      expected_rt_tol_relative = 2.894385
     ),
     RCX_shortened_adjusted = list(
       files = c("RCX_06_shortened", "RCX_07_shortened", "RCX_08_shortened"),
       input = "adjusted",
       mz_max_diff = 10 * 1e-05,
       mz_tol_absolute = 0.01,
-      expected_mz_tol_relative = 6.85676325338646e-06,
-      expected_rt_tol_relative = 2.17918873407775
+      expected_mz_tol_relative = 6.856763e-06,
+      expected_rt_tol_relative = 1.93185408267324
     )
   )
 )

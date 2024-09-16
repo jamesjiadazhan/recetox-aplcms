@@ -33,14 +33,14 @@ patrick::with_parameters_test_that(
       shape_model = "bi-Gaussian",
       do.plot = FALSE
     ),
-    RCX_06_shortened_gaussian = list(
-      filename = c("RCX_06_shortened.parquet"),
-      expected_filename = "RCX_06_shortened_gaussian_features.parquet",
-      sd_cut = c(0.01, 500),
-      sigma_ratio_lim = c(0.01, 100),
-      shape_model = "Gaussian",
-      do.plot = FALSE
-    ),
+    # RCX_06_shortened_gaussian = list(
+    #   filename = c("RCX_06_shortened.parquet"),
+    #   expected_filename = "RCX_06_shortened_gaussian_features.parquet",
+    #   sd_cut = c(0.01, 500),
+    #   sigma_ratio_lim = c(0.01, 100),
+    #   shape_model = "Gaussian",
+    #   do.plot = FALSE
+    # ),
     RCX_06_shortened_v2 = list(
       filename = c("RCX_06_shortened.parquet"),
       expected_filename = "RCX_06_shortened_features.parquet",

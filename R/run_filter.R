@@ -6,8 +6,7 @@
 #' @return unique_grp.
 #' @export
 compute_uniq_grp <- function(profile, min_count_run, min_pres) {
-  grps <- profile
-  ttt <- table(grps)
+  ttt <- table(profile)
   ttt <- ttt[ttt >= max(min_count_run * min_pres, 2)]
   unique_grp <- as.numeric(names(ttt))
   return(unique_grp)
@@ -52,7 +51,7 @@ label_val_to_keep <- function(min_run, timeline, min_pres, this_times, times) {
 
   # filtering based on the kernel regression estimate
   this_smooth <- predict_smoothed_rt(min_run, this_timeline)
-  if (max(this_smooth) >= min_pres) {
+  if (max(this_smooth, na.rm = TRUE) >= min_pres) {
     measured_points <- good_points <- timeline
     measured_points[this_times] <- 1
 
@@ -82,22 +81,22 @@ label_val_to_keep <- function(min_run, timeline, min_pres, this_times, times) {
 run_filter <- function(newprof,
                        min_pres,
                        min_run) {
-  newprof <- tibble::tibble(mz = newprof[, 1], rt = newprof[, 2], intensi = newprof[, 3], grps = newprof[, 4])
-
   # ordering retention time values
-  labels <- newprof$rt
-  times <- unique(labels)
-  times <- times[order(times)]
+  # labels <- newprof$rt
+  # times <- unique(labels)
+  # times <- times[order(times)]
 
-  for (i in 1:length(times)) {
-    labels[which(newprof$rt == times[i])] <- i # now labels is the index of time points
-  }
+  # for (i in 1:length(times)) {
+  #   labels[which(newprof$rt == times[i])] <- i # now labels is the index of time points
+  # }
   
-  newprof$rt <- labels
+  # newprof$rt <- labels
+  newprof <- dplyr::arrange_at(newprof, "rt")
+  times <- unique(newprof$rt)
 
   # calculates the minimun number of rt points to be considered a peak
-  min_count_run <- min_run * length(times) / (max(times) - min(times))
-  min_run <- round(min_count_run)
+  scan_rate <- 1.0 / abs(median(diff(times)))
+  min_count_run <- round(min_pres * min_run * scan_rate)
 
   # computes unique groups
   uniq_grp <- compute_uniq_grp(newprof$grps, min_count_run, min_pres)
@@ -105,40 +104,45 @@ run_filter <- function(newprof,
   # ordered by mz and grps data that are inside unigrps
   newprof <- dplyr::filter(newprof, grps %in% uniq_grp) |> dplyr::arrange(grps, mz)
 
-  # computes break points i.e. indices of mass differences greater than min_mz_tol
-  breaks <- compute_breaks_3(newprof$grps)
+  results <- dplyr::group_by(newprof, grps) |>
+    dplyr::filter(n() >= min_count_run && abs(span(rt)) >= min_run) |>
+    dplyr::ungroup() |>
+    dplyr::rename(group_number = grps)
 
-  # init counters for loop
-  new_rec <- newprof * 0
-  rec_pointer <- 1
-  timeline <- rep(0, length(times))
-  for (m in 2:length(breaks))
-  {
-    this_prof <- dplyr::slice(newprof, (breaks[m - 1] + 1):breaks[m]) |> dplyr::arrange_at("rt")
+  # # computes break points i.e. indices of mass differences greater than min_mz_tol
+  # breaks <- compute_breaks_3(newprof$grps)
 
-    to_keep <- label_val_to_keep(
-      min_run,
-      timeline,
-      min_pres,
-      this_prof$rt,
-      times
-    )
+  # # init counters for loop
+  # new_rec <- newprof * 0
+  # rec_pointer <- 1
+  # timeline <- rep(0, length(times))
+  # for (m in 2:length(breaks))
+  # {
+  #   this_prof <- dplyr::slice(newprof, (breaks[m - 1] + 1):breaks[m]) |> dplyr::arrange_at("rt")
 
-    # operation over selected indices
-    if (sum(to_keep) > 0) {
-      this_sel <- which(to_keep == 1)
-      this_new <- dplyr::slice(this_prof, this_sel)
-      r_new <- nrow(this_new)
-      new_rec[rec_pointer:(rec_pointer + r_new - 1), ] <- this_new
-      rec_pointer <- rec_pointer + r_new
-    }
-  }
+  #   to_keep <- label_val_to_keep(
+  #     min_run,
+  #     timeline,
+  #     min_pres,
+  #     this_prof$rt,
+  #     times
+  #   )
+  #   browser()
+  #   # operation over selected indices
+  #   if (sum(to_keep) > 0) {
+  #     this_sel <- which(to_keep == 1)
+  #     this_new <- dplyr::slice(this_prof, this_sel)
+  #     r_new <- nrow(this_new)
+  #     new_rec[rec_pointer:(rec_pointer + r_new - 1), ] <- this_new
+  #     rec_pointer <- rec_pointer + r_new
+  #   }
+  # }
 
-  new_rec <- dplyr::slice(new_rec, 1:(rec_pointer - 1))
-  new_rec[, 2] <- times[new_rec[, 2]]
+  # new_rec <- dplyr::slice(new_rec, 1:(rec_pointer - 1))
+  # new_rec[, 2] <- times[new_rec[, 2]]
 
-  results <- new("list")
-  results$new_rec <- new_rec
+  # results <- new("list")
+  # results$new_rec <- new_rec
 
   return(results)
 }

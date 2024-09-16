@@ -84,6 +84,8 @@ test_that("remove noise works with grouping threshold", {
   expected <- tibble(group_number = c(1, 2, 3, 5, 6, 7, 8, 9),
                      n = c(67, 73, 3, 39, 2, 6, 3, 7))
 
+  threshold <- 4
+
   sut <- remove_noise(
     input_path,
     min_pres = 0.8,
@@ -94,8 +96,11 @@ test_that("remove noise works with grouping threshold", {
     intensity_weighted = FALSE,
     do.plot = FALSE,
     cache = FALSE,
-    grouping_threshold = 4
+    grouping_threshold = threshold
   )
+
+  diffs <- sut |> group_by(group_number) |> arrange_at("rt") |> summarise(max_diff = max(abs(diff(rt))))
+  expect_true(all(diffs$max_diff <= threshold))
 
   actual <- sut %>%
     mutate(group = factor(group_number)) %>%
@@ -103,4 +108,29 @@ test_that("remove noise works with grouping threshold", {
     summarize(n = n())
 
   expect_equal(actual, expected)
+})
+
+test_that("remove noise really really works", {
+  testdata <- file.path("..", "testdata")
+  input_path <- file.path(testdata,
+                          "input",
+                          "RCX_06_shortened.mzML")
+
+  threshold <- 1
+
+  sut <- remove_noise(
+    input_path,
+    min_pres = 0.8,
+    min_run = 1.2,
+    mz_tol = 5e-06,
+    baseline_correct = 0.0,
+    baseline_correct_noise_percentile = 0.05,
+    intensity_weighted = FALSE,
+    do.plot = FALSE,
+    cache = FALSE,
+    grouping_threshold = threshold
+  )
+
+  diffs <- sut |> group_by(group_number) |> arrange_at("rt") |> summarise(max_diff = max(abs(diff(rt))))
+  expect_true(all(diffs$max_diff <= threshold))
 })

@@ -4,11 +4,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [dev] - unreleased
+## [0.13.3] - 2024-09-16
+### Changed
+- fixed not working eic splitting code [#226](https://github.com/RECETOX/recetox-aplcms/pull/226)
+
+## [0.13.2] - 2024-07-30
+### Changed
+- Moved import order in the hope it will fix the import bugs by @hechth in [#224](https://github.com/RECETOX/recetox-aplcms/pull/224)
+
+
+## [0.13.0] - 2024-07-29
 ### Added
 - added tests for mzdata and mzxml formats [#216](https://github.com/RECETOX/recetox-aplcms/pull/216)
+
 ### Changed
+- feature.alignment function refactored by @KristinaGomoryova in [#221](https://github.com/RECETOX/recetox-aplcms/pull/221)
+- remove_noise function updated by @KristinaGomoryova in [#219](https://github.com/RECETOX/recetox-aplcms/pull/219)
+- Updated correct time to use precomputed clusters by @zargham-ahmad in [#220](https://github.com/RECETOX/recetox-aplcms/pull/220)
+- Fix tests by @hechth in [#222](https://github.com/RECETOX/recetox-aplcms/pull/222)
+
 ### Removed
+- removed outdated files by @hechth in [#223](https://github.com/RECETOX/recetox-aplcms/pull/223)
 
 ## [0.12.0] - 2023-07-10
 ### Changed

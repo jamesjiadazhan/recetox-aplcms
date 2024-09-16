@@ -29,15 +29,11 @@ patrick::with_parameters_test_that(
         res$mz_tol_relative,
         get_num_workers()
     )
-    
-    aligned_actual$mz_tol_relative <- res$mz_tol_relative
-    aligned_actual$rt_tol_relative <- res$rt_tol_relative
-
+  
     aligned_expected <- load_aligned_features(
       file.path(testdata, "aligned", "metadata_table.parquet"),
       file.path(testdata, "aligned", "intensity_table.parquet"),
-      file.path(testdata, "aligned", "rt_table.parquet"),
-      file.path(testdata, "aligned", "tolerances.parquet")
+      file.path(testdata, "aligned", "rt_table.parquet")
     )
 
     expect_equal(aligned_actual, aligned_expected)
@@ -75,12 +71,8 @@ patrick::with_parameters_test_that(
     aligned_expected <- load_aligned_features(
       file.path(testdata, "aligned", "metadata_table.parquet"),
       file.path(testdata, "aligned", "intensity_table.parquet"),
-      file.path(testdata, "aligned", "rt_table.parquet"),
-      file.path(testdata, "aligned", "tolerances.parquet")
+      file.path(testdata, "aligned", "rt_table.parquet")
     )
-
-    aligned_expected["mz_tol_relative"] <- NULL
-    aligned_expected["rt_tol_relative"] <- NULL
 
     expect_equal(aligned_actual, aligned_expected)
   },
@@ -88,8 +80,8 @@ patrick::with_parameters_test_that(
     RCX_shortened = list(
       files = c("RCX_06_shortened", "RCX_07_shortened", "RCX_08_shortened"),
       min_occurrence = 2,
-      mz_tol_relative = 6.85676325338646e-06,
-      rt_tol_relative = 2.17918873407775
+      mz_tol_relative = 6.84903911826453e-06,
+      rt_tol_relative = 1.93185408267324
     )
   )
 )

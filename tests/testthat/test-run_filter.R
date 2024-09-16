@@ -6,18 +6,11 @@ patrick::with_parameters_test_that(
     testdata <- file.path("..", "testdata")
     input_path <- file.path(testdata, "filtered", "run_filter", paste0(filename, ".parquet"))
 
-    input_data <- as.matrix(arrow::read_parquet(input_path))
+    input_data <- arrow::read_parquet(input_path)
     actual <- run_filter(input_data, min_pres, min_run)
 
-    actual <- tibble::tibble(
-      mz = actual$new_rec[, 1],
-      rt = actual$new_rec[, 2],
-      intensity = actual$new_rec[, 3],
-      group_number = actual$new_rec[, 4]
-      )
-
     expected_path <- file.path(testdata, "filtered", "run_filter", paste0(filename, "_run_filter.parquet"))
-    expected <- arrow::read_parquet(expected_path) 
+    expected <- arrow::read_parquet(expected_path)
 
     expect_equal(actual, expected)
     

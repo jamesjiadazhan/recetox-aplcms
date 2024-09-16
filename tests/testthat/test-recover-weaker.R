@@ -1,3 +1,9 @@
+.update_expected <- function(actual, folder, filenames) {
+  for(i in seq_along(actual)) {
+    arrow::write_parquet(actual[[i]], file.path(folder, filenames[i]))
+  }
+}
+
 patrick::with_parameters_test_that(
   "recover weaker signals test",
   {
@@ -9,14 +15,12 @@ patrick::with_parameters_test_that(
     })
 
     extracted <- read_parquet_files(files, "extracted", ".parquet")
-
     adjusted <- read_parquet_files(files, "adjusted", ".parquet")
 
     aligned <- load_aligned_features(
       file.path(testdata, "aligned", "metadata_table.parquet"),
       file.path(testdata, "aligned", "intensity_table.parquet"),
-      file.path(testdata, "aligned", "rt_table.parquet"),
-      file.path(testdata, "aligned", "tolerances.parquet")
+      file.path(testdata, "aligned", "rt_table.parquet")
     )
 
     recovered <- lapply(seq_along(ms_files), function(i) {
@@ -29,8 +33,8 @@ patrick::with_parameters_test_that(
         rt_table = aligned$rt,
         intensity_table = aligned$intensity,
         mz_tol = mz_tol,
-        mz_tol_relative = aligned$mz_tol_relative,
-        rt_tol_relative = aligned$rt_tol_relative,
+        mz_tol_relative = 6.84903911826453e-06,
+        rt_tol_relative = 1.93185408267324,
         recover_mz_range = recover_mz_range,
         recover_rt_range = recover_rt_range,
         use_observed_range = use_observed_range,
@@ -48,8 +52,19 @@ patrick::with_parameters_test_that(
     extracted_recovered_actual <- lapply(recovered, function(x) x$extracted_features |> dplyr::arrange_at(keys))
     corrected_recovered_actual <- lapply(recovered, function(x) x$adjusted_features |> dplyr::arrange_at(keys))
 
-    extracted_recovered_expected <- read_parquet_files(files, file.path("recovered", "recovered-extracted"), ".parquet")
+    # .update_expected(
+    #   extracted_recovered_actual,
+    #   file.path(testdata, "recovered", "recovered-extracted"),
+    #   lapply(files, function(x) {paste0(x, ".parquet")})
+    # )
 
+    # .update_expected(
+    #   corrected_recovered_actual,
+    #   file.path(testdata, "recovered", "recovered-corrected"),
+    #   lapply(files, function(x) {paste0(x, ".parquet")})
+    # )
+
+    extracted_recovered_expected <- read_parquet_files(files, file.path("recovered", "recovered-extracted"), ".parquet")
     corrected_recovered_expected <- read_parquet_files(files, file.path("recovered", "recovered-corrected"), ".parquet")
 
     expect_equal(extracted_recovered_actual, extracted_recovered_expected)

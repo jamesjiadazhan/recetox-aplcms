@@ -53,7 +53,6 @@ patrick::with_parameters_test_that(
     })
 
     expected <- read_parquet_files(expected_files, "extracted", ".parquet")
-
     expect_equal(actual, expected, tolerance = 0.02)
   },
   patrick::cases(

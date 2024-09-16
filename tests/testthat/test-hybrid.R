@@ -25,10 +25,9 @@ patrick::with_parameters_test_that("basic hybrid test", {
   actual <- as_tibble(result$recovered_feature_sample_table)
   keys <- c("mz", "rt", "sample", "sample_rt", "sample_intensity")
 
-  # arrow::write_parquet(actual, file.path(testdata, "hybrid", paste0(.test_name, "_recovered_feature_sample_table.parquet")))
-  expected <- arrow::read_parquet(
-    file.path(testdata, "hybrid", paste0(.test_name, "_recovered_feature_sample_table.parquet"))
-  )
+  expected_path <- file.path(testdata, "hybrid", paste0(.test_name, "_recovered_feature_sample_table.parquet"))
+  # arrow::write_parquet(actual, expected_path)
+  expected <- arrow::read_parquet(expected_path)
 
   if (store_reports) {
     report <- dataCompareR::rCompare(
@@ -63,6 +62,6 @@ patrick::cases(
   qc_no_dil_milliq = list(
     files = c("8_qc_no_dil_milliq.mzml", "21_qc_no_dil_milliq.mzml", "29_qc_no_dil_milliq.mzml"),
     ci_skip = TRUE,
-    full_testdata = TRUE
+    full_testdata = FALSE
   )
 ))

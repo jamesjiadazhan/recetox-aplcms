@@ -110,18 +110,15 @@ concatenate_feature_tables <- function(features, sample_names) {
 }
 
 #' @export
-load_aligned_features <- function(metadata_file, intensities_file, rt_file, tol_file) {
+load_aligned_features <- function(metadata_file, intensities_file, rt_file) {
     metadata <- arrow::read_parquet(metadata_file)
     intensities <- arrow::read_parquet(intensities_file)
     rt <- arrow::read_parquet(rt_file)
-    tolerances <- arrow::read_parquet(tol_file)
     
     result <- list()
     result$metadata <- as_tibble(metadata)
     result$intensity <- as_tibble(intensities)
     result$rt <- as_tibble(rt)
-    result$mz_tol_relative <- tolerances$mz_tolerance
-    result$rt_tol_relative <- tolerances$rt_tolerance
     return(result)
 }
 

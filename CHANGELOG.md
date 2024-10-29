@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [dev] - unreleased
 ### Changed
-- re-enabled parallelism in alignment step []()
+- re-enabled parallelism in alignment step [#230](https://github.com/RECETOX/recetox-aplcms/pull/230)
 
 ## [0.13.3] - 2024-09-16
 ### Changed

@@ -215,7 +215,7 @@ create_aligned_feature_table <- function(features_table,
   # retention time alignment
   aligned_features <- foreach::foreach(
     i = seq_along(sel.labels), .combine = "comb", .multicombine = TRUE
-  ) %do% {
+  ) %dopar% {
     rows <- create_features_from_cluster(
       dplyr::filter(features_table, cluster == sel.labels[i]),
       mz_tol_relative,

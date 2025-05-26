@@ -170,11 +170,11 @@ clean_data_matrix <- function(x, sample_names) {
 
 #' Add `id` column to a dataframe
 #' @param x A dataframe
-#' @return The same dataframe but with an additional `id` column 
+#' @return The same dataframe but with an additional `id` column
 #' in first place which contains the rownames.
 #' @export
 add_feature_ids <- function(x) {
-  x$id <- as.numeric(rownames(x))
+  x$id <- as.integer(rownames(x))
   return(tibble::as_tibble(x |> dplyr::relocate(id)))
 }
 

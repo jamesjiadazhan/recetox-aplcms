@@ -77,7 +77,18 @@ load.lcms <- function(filename) {
 #' }
 #' @export
 load.lcms.raw <- function(filename) {
+  # Check if the rawrr package is installed
   if (!requireNamespace("rawrr", quietly = TRUE)) {
     stop("The 'rawrr' package is required but not installed. Please install it with install.packages('rawrr').")
+  }
+
+  # Check if rawrr is setup correctly
+  if(!rawrr::.checkDllInMonoPath()) {
+    stop("The 'rawrr' package is not set up correctly. Please ensure that the rawrr package is installed and configured properly.")
+  }
+
+  # Check if the file exists
+  if (!file.exists(filename)) {
+    stop(paste("The file", filename, "does not exist."))
   }
 }

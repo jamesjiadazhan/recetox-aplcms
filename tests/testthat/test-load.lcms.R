@@ -44,5 +44,14 @@ create_test_case <- function(filename, mz_length, rt_length, intensities_length)
 
 testthat::test_that("load.lcms.raw fails if rawrr is not installed", {
   # Act & Assert: Expect an error when trying to load a non-existent file
+  testthat::skip_if(requireNamespace("rawrr", quietly = TRUE), "The 'rawrr' package is already installed.")	
   testthat::expect_error(load.lcms.raw("test.raw"), "The 'rawrr' package is required but not installed. Please install it with install.packages('rawrr').")
+})
+
+
+testthat::test_that("load.lcms.raw fails if rawrr is not installed correctly.", {
+  # Act & Assert: Expect an error when trying to load a non-existent file
+  testthat::skip_if(!requireNamespace("rawrr", quietly = TRUE), "The 'rawrr' package needs to be installed for this check.")
+  testthat::skip_if(rawrr::.checkDllInMonoPath(), "The 'rawrr' package is set up correctly, skipping this test.")
+  testthat::expect_error(load.lcms.raw("test.raw"), "The 'rawrr' package is not set up correctly. Please ensure that the rawrr package is installed and configured properly.")
 })

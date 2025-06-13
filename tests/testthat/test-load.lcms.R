@@ -15,6 +15,11 @@ patrick::with_parameters_test_that(
       skip()
     }
 
+    # Skip if rawrr is not installed for raw files
+    if (tools::file_ext(filename) == "raw" && !requireNamespace("rawrr", quietly = TRUE)) {
+      testthat::skip("The 'rawrr' package is required for reading raw files but is not installed.")
+    }
+
     # Check if path is absolute or relative, if relative, prepend testdata directory
     if (!file.exists(filename)) {
       filename <- file.path("..", "testdata", "input", filename)

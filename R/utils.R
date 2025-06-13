@@ -7,6 +7,7 @@ register_functions_to_cluster <- function(cluster) {
         'remove_noise',
         'prof.to.features',
         'load.lcms',
+        'load.lcms.raw',
         'adaptive.bin',
         'add_feature_ids',
         'find.turn.point',

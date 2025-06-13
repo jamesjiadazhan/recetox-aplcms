@@ -30,3 +30,4 @@ dependencies:
   - r-microbenchmark
   - r-covr
   - r-plyr
+  - bioconductor-rawrr

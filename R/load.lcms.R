@@ -62,3 +62,22 @@ load.lcms <- function(filename) {
 
   return(features)
 }
+
+#' Loading MS data from raw files.
+#'
+#' This is an internal function. It loads MS data from raw files into memory.
+#'
+#' @param filename The raw file name.
+#' @return A list is returned.
+#' \itemize{
+#'   \item mz - The vector of m/z values.
+#'   \item labels - The vector of retention times.
+#'   \item rt - The vector of retention times.
+#'   \item intensities - The vector of intensity values.
+#' }
+#' @export
+load.lcms.raw <- function(filename) {
+  if (!requireNamespace("rawrr", quietly = TRUE)) {
+    stop("The 'rawrr' package is required but not installed. Please install it with install.packages('rawrr').")
+  }
+}

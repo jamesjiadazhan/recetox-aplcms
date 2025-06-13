@@ -72,6 +72,9 @@ load.lcms <- function(filename) {
 #'   \item rt - The vector of retention times.
 #'   \item intensities - The vector of intensity values.
 #' }
+#' @import rawrr
+#' @import tibble
+#' @importFrom utils file.exists
 #' @export
 load.lcms.raw <- function(filename) {
   # Check if the rawrr package is installed

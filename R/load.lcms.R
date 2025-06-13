@@ -8,12 +8,11 @@ NULL
 #' This is an internal function. It loads LC/MS data into memory.
 #' 
 #' @param filename The CDF file name.
-#' @return A list is returned.
+#' @return A tibble is returned with the following columns:
 #' \itemize{
-#'   \item masses - The vector of m/z values.
-#'   \item labels - The vector of retention times.
-#'   \item intensi - The vector of intensity values.
-#'   \item times - The vector of unique time points.
+#'   \item mz - The vector of m/z values.
+#'   \item rt - The vector of retention times.
+#'   \item intensities - The vector of intensity values.
 #' }
 #' @export
 load.lcms <- function(filename) {
@@ -59,7 +58,6 @@ load.lcms <- function(filename) {
   mzR::close(mz_conn)
 
   features <- tibble::tibble(mz = masses, rt = labels, intensities = intensi)
-
   return(features)
 }
 
@@ -68,10 +66,9 @@ load.lcms <- function(filename) {
 #' This is an internal function. It loads MS data from raw files into memory.
 #'
 #' @param filename The raw file name.
-#' @return A list is returned.
+#' @return A tibble is returned with the following columns:
 #' \itemize{
 #'   \item mz - The vector of m/z values.
-#'   \item labels - The vector of retention times.
 #'   \item rt - The vector of retention times.
 #'   \item intensities - The vector of intensity values.
 #' }
@@ -83,7 +80,7 @@ load.lcms.raw <- function(filename) {
   }
 
   # Check if rawrr is setup correctly
-  if(!rawrr::.checkDllInMonoPath()) {
+  if(rawrr::rawrrAssemblyPath() == "") {
     stop("The 'rawrr' package is not set up correctly. Please ensure that the rawrr package is installed and configured properly.")
   }
 
@@ -91,4 +88,24 @@ load.lcms.raw <- function(filename) {
   if (!file.exists(filename)) {
     stop(paste("The file", filename, "does not exist."))
   }
+
+  header <- rawrr::readFileHeader(filename)
+  idx <- rawrr::readIndex(filename)
+  scans <- rawrr::readSpectrum(filename, scan=idx$scan)
+
+  mz <- c()
+  intensities <- c()
+  rt <- c()
+
+  for (i in seq_along(scans)) {
+    scan <- scans[[i]]
+    if (length(scan$mZ) > 0 && length(scan$intensity) > 0) {
+      mz <- c(mz, scan$mZ)
+      intensities <- c(intensities, scan$intensity)
+      rt <- c(rt, rep(idx$StartTime[i], length(scan$mZ)))
+    }
+  }
+
+  features <- tibble::tibble(mz = mz, rt = rt, intensities = intensities)
+  return(features)
 }

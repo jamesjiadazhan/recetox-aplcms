@@ -74,7 +74,6 @@ load.lcms <- function(filename) {
 #' }
 #' @import rawrr
 #' @import tibble
-#' @importFrom utils file.exists
 #' @export
 load.lcms.raw <- function(filename) {
   # Check if the rawrr package is installed

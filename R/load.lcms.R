@@ -16,6 +16,12 @@ NULL
 #' }
 #' @export
 load.lcms <- function(filename) {
+
+  # Check if file is raw file, if so, use rawrr package
+  if (tools::file_ext(filename) == "raw") {
+    return(load.lcms.raw(filename))
+  }
+
   mz_conn <- mzR::openMSfile(filename = filename)
   b <- mzR::header(mz_conn)$retentionTime
 

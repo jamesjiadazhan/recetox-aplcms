@@ -67,6 +67,18 @@ load.lcms <- function(filename) {
   return(features)
 }
 
+process_chunk <- function(spectra, start_times) {
+  lapply(seq_along(spectra), function(j) {
+    spectrum <- spectra[[j]]
+    n <- length(spectrum$mZ)
+    list(
+      mz = spectrum$mZ,
+      rt = rep(start_times[j], n),
+      intensities = spectrum$intensity
+    )
+  })
+}
+
 #' Loading MS data from raw files.
 #'
 #' This is an internal function. It loads MS data from raw files into memory.
@@ -80,8 +92,9 @@ load.lcms <- function(filename) {
 #' }
 #' @import rawrr
 #' @import tibble
+#' @import purrr
 #' @export
-load.lcms.raw <- function(filename) {
+load.lcms.raw <- function(filename, chunk_size = 200) {
   # Check if the rawrr package is installed
   if (!requireNamespace("rawrr", quietly = TRUE)) {
     stop("The 'rawrr' package is required but not installed. Please install it with install.packages('rawrr').")
@@ -99,25 +112,19 @@ load.lcms.raw <- function(filename) {
 
   header <- rawrr::readFileHeader(filename)
   idx <- rawrr::readIndex(filename)
-  scans <- rawrr::readSpectrum(filename, scan=idx$scan)
+  n_scans <- length(idx$scan)
+  chunk_starts <- seq(1, n_scans, by = chunk_size)
 
-  total_length <- sum(sapply(scans, function(scan) length(scan$mZ)))
-  mz <- numeric(total_length)
-  intensities <- numeric(total_length)
-  rt <- numeric(total_length)
+  results <- lapply(chunk_starts, function(start) {
+    end <- min(start + chunk_size - 1, n_scans)
+    scans_to_load <- idx$scan[start:end]
+    spectra <- rawrr::readSpectrum(filename, scan = scans_to_load)
+    process_chunk(spectra, idx$StartTime[start:end])
+  })
 
-  current_index <- 1
-  for (i in seq_along(scans)) {
-    scan <- scans[[i]]
-    if (length(scan$mZ) > 0 && length(scan$intensity) > 0) {
-      num_elements <- length(scan$mZ)
-      mz[current_index:(current_index + num_elements - 1)] <- scan$mZ
-      intensities[current_index:(current_index + num_elements - 1)] <- scan$intensity
-      rt[current_index:(current_index + num_elements - 1)] <- rep(idx$StartTime[i], num_elements)
-      current_index <- current_index + num_elements
-    }
-  }
+  features <- purrr::transpose(unlist(results, recursive = FALSE)) |> 
+    purrr::map(~ unlist(.x, use.names = FALSE)) |>
+    tibble::as_tibble()
 
-  features <- tibble::tibble(mz = mz, rt = rt, intensities = intensities)
   return(features)
 }

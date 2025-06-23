@@ -101,16 +101,20 @@ load.lcms.raw <- function(filename) {
   idx <- rawrr::readIndex(filename)
   scans <- rawrr::readSpectrum(filename, scan=idx$scan)
 
-  mz <- c()
-  intensities <- c()
-  rt <- c()
+  total_length <- sum(sapply(scans, function(scan) length(scan$mZ)))
+  mz <- numeric(total_length)
+  intensities <- numeric(total_length)
+  rt <- numeric(total_length)
 
+  current_index <- 1
   for (i in seq_along(scans)) {
     scan <- scans[[i]]
     if (length(scan$mZ) > 0 && length(scan$intensity) > 0) {
-      mz <- c(mz, scan$mZ)
-      intensities <- c(intensities, scan$intensity)
-      rt <- c(rt, rep(idx$StartTime[i], length(scan$mZ)))
+      num_elements <- length(scan$mZ)
+      mz[current_index:(current_index + num_elements - 1)] <- scan$mZ
+      intensities[current_index:(current_index + num_elements - 1)] <- scan$intensity
+      rt[current_index:(current_index + num_elements - 1)] <- rep(idx$StartTime[i], num_elements)
+      current_index <- current_index + num_elements
     }
   }
 

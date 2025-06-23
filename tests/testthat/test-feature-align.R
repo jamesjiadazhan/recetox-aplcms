@@ -27,7 +27,7 @@ patrick::with_parameters_test_that(
         files,
         res$rt_tol_relative,
         res$mz_tol_relative,
-        get_num_workers()
+        cluster = get_num_workers()
     )
   
     aligned_expected <- load_aligned_features(
@@ -65,7 +65,7 @@ patrick::with_parameters_test_that(
         files,
         rt_tol_relative,
         mz_tol_relative,
-        get_num_workers()
+        cluster = get_num_workers()
     )
 
     aligned_expected <- load_aligned_features(

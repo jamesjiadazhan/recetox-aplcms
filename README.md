@@ -33,6 +33,7 @@ wget -P tests/testdata/adjusted -i tests/remote-files/adjusted.txt
 wget -P tests/testdata/aligned -i tests/remote-files/aligned.txt
 wget -P tests/testdata/extracted -i tests/remote-files/extracted.txt
 wget -P tests/testdata/input -i tests/remote-files/input.txt
+wget -P tests/testdata/input -i tests/remote-files/whole-data-input.txt
 wget -P tests/testdata/recovered -i tests/remote-files/recovered.txt
 wget -P tests/testdata/recovered/recovered-extracted -i tests/remote-files/recovered-extracted.txt
 wget -P tests/testdata/recovered/recovered-corrected -i tests/remote-files/recovered-corrected.txt

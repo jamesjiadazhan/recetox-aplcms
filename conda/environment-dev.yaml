@@ -2,7 +2,6 @@ name: recetox-aplcms-dev
 channels:
   - conda-forge
   - bioconda
-  - defaults
 dependencies:
   - r-base
   - icu

@@ -14,12 +14,19 @@ patrick::with_parameters_test_that(
       print("mzR >= 2.29.0 no longer supports mzdata.")
       skip()
     }
-    # Arrange: Set up test inputs
-    testdata <- file.path("..", "testdata")
-    input_path <- file.path(testdata, "input", filename)
+
+    # Skip if rawrr is not installed for raw files
+    if (tools::file_ext(filename) == "raw" && !requireNamespace("rawrr", quietly = TRUE)) {
+      testthat::skip("The 'rawrr' package is required for reading raw files but is not installed.")
+    }
+
+    # Check if path is absolute or relative, if relative, prepend testdata directory
+    if (!file.exists(filename)) {
+      filename <- file.path("..", "testdata", "input", filename)
+    }
 
     # Act: Execute the function with the test inputs
-    data <- load.lcms(input_path)
+    data <- load.lcms(filename)
 
     # Assert: Verify the function output matches expected results
     # Check that the function returns an object of the expected type
@@ -38,6 +45,36 @@ patrick::with_parameters_test_that(
   patrick::cases(
     test_case_1 = create_test_case("RCX_06_shortened.mzML", 879476, 879476, 879476),
     test_case_2 = create_test_case("test_file.mzXML", 9647575, 9647575, 9647575),
-    test_case_3 = create_test_case("alg3.mzdata", 543894, 543894, 543894)
+    test_case_3 = create_test_case("alg3.mzdata", 543894, 543894, 543894),
+    test_case_3 = create_test_case(rawrr::sampleFilePath(), 30689, 30689, 30689)
   )
 )
+
+testthat::test_that("load.lcms.raw fails if rawrr is not installed", {
+  # Act & Assert: Expect an error when trying to load a non-existent file
+  testthat::skip_if(requireNamespace("rawrr", quietly = TRUE), "The 'rawrr' package is already installed.")	
+  testthat::expect_error(load.lcms.raw("test.raw"), "The 'rawrr' package is required but not installed. Please install it with install.packages('rawrr').")
+})
+
+
+testthat::test_that("load.lcms.raw fails if rawrr is not installed correctly.", {
+  # Act & Assert: Expect an error when trying to load a non-existent file
+  testthat::skip_if(!requireNamespace("rawrr", quietly = TRUE), "The 'rawrr' package needs to be installed for this check.")
+  testthat::skip_if(rawrr::rawrrAssemblyPath() != "", "The 'rawrr' package is set up correctly, skipping this test.")
+  testthat::expect_error(load.lcms.raw("test.raw"), "The 'rawrr' package is not set up correctly. Please ensure that the rawrr package is installed and configured properly.")
+})
+
+testthat::test_that("load.lcms.raw reads a raw file correctly", {
+  # Arrange: Set up test inputs
+  sample_raw_file <- rawrr::sampleFilePath()
+
+  # Act: Execute the function with the test inputs
+  actual <- load.lcms.raw(sample_raw_file)
+
+  # Assert: Verify the function output matches expected results
+  testthat::expect_equal(nrow(actual), 30689)
+  testthat::expect_equal(ncol(actual), 3)
+  testthat::expect_equal(length(actual$mz), 30689)
+  testthat::expect_equal(length(actual$rt), 30689)
+  testthat::expect_equal(length(actual$intensities), 30689)
+})

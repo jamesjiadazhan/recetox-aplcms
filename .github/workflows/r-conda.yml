@@ -57,7 +57,10 @@ jobs:
           wget -P tests/testdata/hybrid -i tests/remote-files/hybrid.txt
           wget -P tests/testdata/template -i tests/remote-files/template.txt
           wget -P tests/testdata/unsupervised -i tests/remote-files/unsupervised.txt
-
+      - name: Install ThermoRawFileReaderDLLs
+        run: |
+          conda activate recetox-aplcms-dev
+          Rscript -e "rawrr::installRawFileReaderDLLs()" -e "rawrr::installRawrrExe()"
       - name: Test coverage
         run: |
           conda activate recetox-aplcms-dev

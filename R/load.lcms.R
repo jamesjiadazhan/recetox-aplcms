@@ -17,11 +17,6 @@ NULL
 #' @export
 load.lcms <- function(filename) {
 
-  # Check if file is raw file, if so, use rawrr package
-  if (tools::file_ext(filename) == "raw") {
-    return(load.lcms.raw(filename))
-  }
-
   mz_conn <- mzR::openMSfile(filename = filename)
   b <- mzR::header(mz_conn)$retentionTime
 
@@ -77,54 +72,4 @@ process_chunk <- function(spectra, start_times) {
       intensities = spectrum$intensity
     )
   })
-}
-
-#' Loading MS data from raw files.
-#'
-#' This is an internal function. It loads MS data from raw files into memory.
-#'
-#' @param filename The raw file name.
-#' @return A tibble is returned with the following columns:
-#' \itemize{
-#'   \item mz - The vector of m/z values.
-#'   \item rt - The vector of retention times.
-#'   \item intensities - The vector of intensity values.
-#' }
-#' @import rawrr
-#' @import tibble
-#' @import purrr
-#' @export
-load.lcms.raw <- function(filename, chunk_size = 200) {
-  # Check if the rawrr package is installed
-  if (!requireNamespace("rawrr", quietly = TRUE)) {
-    stop("The 'rawrr' package is required but not installed. Please install it with install.packages('rawrr').")
-  }
-
-  # Check if rawrr is setup correctly
-  if(rawrr::rawrrAssemblyPath() == "") {
-    stop("The 'rawrr' package is not set up correctly. Please ensure that the rawrr package is installed and configured properly.")
-  }
-
-  # Check if the file exists
-  if (!file.exists(filename)) {
-    stop(paste("The file", filename, "does not exist."))
-  }
-
-  header <- rawrr::readFileHeader(filename)
-  idx <- rawrr::readIndex(filename)
-  n_scans <- length(idx$scan)
-  chunk_starts <- seq(1, n_scans, by = chunk_size)
-
-  results <- lapply(chunk_starts, function(start) {
-    end <- min(start + chunk_size - 1, n_scans)
-    scans_to_load <- idx$scan[start:end]
-    spectra <- rawrr::readSpectrum(filename, scan = scans_to_load)
-    process_chunk(spectra, idx$StartTime[start:end])
-  })
-
-  features <- purrr::transpose(unlist(results, recursive = FALSE)) |> 
-    purrr::map(~ unlist(.x, use.names = FALSE)) |>
-    tibble::as_tibble()
-
-  return(features)
 }

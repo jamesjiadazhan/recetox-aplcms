@@ -59,6 +59,7 @@ get_sample_name <- function(filename) {
 #' features extraction in unsupervised mode.
 #' 
 #' @param filenames The CDF file names.
+#' @param cache Whether to cache the results during the parallel processing of the peak detection.
 #' @param min_occurrence A feature has to show up in at least this number of profiles to be included in the final result.
 #' @param min_pres This is a parameter of the run filter, to be passed to the function remove_noise().
 #' @param min_run Run filter parameter. The minimum length of elution time for a series of signals grouped by m/z 
@@ -105,186 +106,287 @@ get_sample_name <- function(filename) {
 #' @param cluster The number of CPU cores to be used
 #' @export
 unsupervised <- function(
-  filenames,
-  min_occurrence = 2,
-  min_pres = 0.5,
-  min_run = 12,
-  mz_tol = 1e-05,
-  baseline_correct = 0,
-  baseline_correct_noise_percentile = 0.05,
-  shape_model = "bi-Gaussian",
-  BIC_factor = 2,
-  peak_estim_method = "moment",
-  bandwidth = 0.5,
-  min_bandwidth = NA,
-  max_bandwidth = NA,
-  sd_cut = c(0.01, 500),
-  sigma_ratio_lim = c(0.01, 100),
-  component_eliminate = 0.01,
-  moment_power = 1,
-  mz_tol_relative = NA,
-  rt_tol_relative = NA,
-  mz_tol_absolute = 0.01,
-  recover_mz_range = NA,
-  recover_rt_range = NA,
-  use_observed_range = TRUE,
-  recover_min_count = 3,
-  intensity_weighted = FALSE,
-  do_plot = FALSE,
-  cluster = 4
+    filenames,
+    cache = TRUE,
+    min_occurrence = 2,
+    min_pres = 0.5,
+    min_run = 12,
+    mz_tol = 1e-05,
+    baseline_correct = 0,
+    baseline_correct_noise_percentile = 0.05,
+    shape_model = "bi-Gaussian",
+    BIC_factor = 2,
+    peak_estim_method = "moment",
+    bandwidth = 0.5,
+    min_bandwidth = NA,
+    max_bandwidth = NA,
+    sd_cut = c(0.01, 500),
+    sigma_ratio_lim = c(0.01, 100),
+    component_eliminate = 0.01,
+    moment_power = 1,
+    mz_tol_relative = NA,
+    rt_tol_relative = NA,
+    mz_tol_absolute = 0.01,
+    recover_mz_range = NA,
+    recover_rt_range = NA,
+    use_observed_range = TRUE,
+    recover_min_count = 3,
+    intensity_weighted = FALSE,
+    do_plot = FALSE,
+    cluster = 4
 ) {
-  if (!is(cluster, 'cluster')) {
-    cluster <- parallel::makeCluster(cluster)
-    on.exit(parallel::stopCluster(cluster))
-  }
+    if (!is(cluster, 'cluster')) {
+        cluster <- parallel::makeCluster(cluster)
+        on.exit(parallel::stopCluster(cluster))
+    }
 
-  # NOTE: side effect (doParallel has no functionality to clean up)
-  doParallel::registerDoParallel(cluster)
-  register_functions_to_cluster(cluster)
+    # NOTE: side effect (doParallel has no functionality to clean up)
+    doParallel::registerDoParallel(cluster)
+    register_functions_to_cluster(cluster)
 
-  check_files(filenames)
-  sample_names <- get_sample_name(filenames)
-  number_of_samples <- length(sample_names)
+    # print the number of cores
+    print(paste0("number of cores: ", getDoParWorkers()))
 
-  message("**** feature extraction ****")
-  profiles <- snow::parLapply(cluster, filenames, function(filename) {
-      remove_noise(
-          filename = filename,
-          min_pres = min_pres,
-          min_run = min_run,
-          mz_tol = mz_tol,
-          baseline_correct = baseline_correct,
-          baseline_correct_noise_percentile = baseline_correct_noise_percentile,
-          intensity_weighted = intensity_weighted,
-          do.plot = do_plot,
-          cache = FALSE
-      )
-  })
-  
-  feature_tables <- snow::parLapply(cluster, profiles, function(profile) {
-      prof.to.features(
-          profile = profile,
-          bandwidth = bandwidth,
-          min_bandwidth = min_bandwidth,
-          max_bandwidth = max_bandwidth,
-          sd_cut = sd_cut,
-          sigma_ratio_lim = sigma_ratio_lim,
-          shape_model = shape_model,
-          peak_estim_method = peak_estim_method,
-          component_eliminate = component_eliminate,
-          moment_power = moment_power,
-          BIC_factor = BIC_factor,
-          do.plot = do_plot
-      )
-  })
+    # print the number of samples
+    print(paste0("number of samples: ", number_of_samples))
 
-  message("**** computing clusters ****")
-  extracted_clusters <- compute_clusters(
-    feature_tables = feature_tables,
-    mz_tol_relative = mz_tol_relative,
-    mz_tol_absolute = mz_tol_absolute,
-    mz_max_diff = 10 * mz_tol,
-    rt_tol_relative = rt_tol_relative,
-    do.plot = do_plot,
-    sample_names = sample_names
-  )
+    check_files(filenames)
+    sample_names <- get_sample_name(filenames)
+    number_of_samples <- length(sample_names)
 
-  message("**** computing template ****")
-  template_features <- compute_template(extracted_clusters$feature_tables)
+    # As not all objects or variables are automatically exported to the worker environments when using parallel processing in R, we need to export the needed variables to the cluster
+    clusterExport(cluster, varlist = c(
+      "cache", "min_occurrence", "min_pres","min_run","mz_tol","baseline_correct","baseline_correct_noise_percentile","shape_model","BIC_factor","peak_estim_method","bandwidth","min_bandwidth","max_bandwidth","sd_cut","sigma_ratio_lim","component_eliminate","moment_power","mz_tol_relative","rt_tol_relative","mz_tol_absolute","recover_mz_range","recover_rt_range","use_observed_range","recover_min_count","intensity_weighted","do_plot"
+    ))
+    # print the current settings for min_pres and min_run
+    print(paste0("current settings: ", "min_pres = ", min_pres, ", min_run = ", min_run))
 
+    # print the noise removal message
+    message("**** noise removal in the raw data ****")
 
-  message("**** time correction ****")
-  corrected <- foreach::foreach(this.feature = extracted_clusters$feature_tables) %dopar% correct_time(
-    this.feature,
-    template_features
-  )
+    # print the cache message
+    print(paste0("cache is set to ", cache))
 
-  message("**** computing clusters ****")
-  adjusted_clusters <- compute_clusters(
-    feature_tables = corrected,
-    mz_tol_relative = extracted_clusters$mz_tol_relative,
-    mz_tol_absolute = extracted_clusters$rt_tol_relative,
-    mz_max_diff = 10 * mz_tol,
-    rt_tol_relative = rt_tol_relative,
-    do.plot = do_plot,
-    sample_names = sample_names
-  )
-
-  message("**** feature alignment ****")
-  aligned <- create_aligned_feature_table(
-      dplyr::bind_rows(adjusted_clusters$feature_tables),
-      min_occurrence,
-      sample_names,
-      adjusted_clusters$rt_tol_relative,
-      adjusted_clusters$mz_tol_relative,
-      cluster
-  )
-
-  message("**** weaker signal recovery ****")
-  recovered <- snow::parLapply(cluster, seq_along(filenames), function(i) {
-    recover.weaker(
-      filename = filenames[[i]],
-      sample_name = sample_names[i],
-      extracted_features = feature_tables[[i]],
-      adjusted_features = corrected[[i]],
-      metadata_table = aligned$metadata,
-      rt_table = aligned$rt,
-      intensity_table = aligned$intensity,
-      mz_tol = mz_tol,
-      mz_tol_relative = adjusted_clusters$mz_tol_relative,
-      rt_tol_relative = adjusted_clusters$rt_tol_relative,
-      recover_mz_range = recover_mz_range,
-      recover_rt_range = recover_rt_range,
-      use_observed_range = use_observed_range,
-      bandwidth = bandwidth,
-      min_bandwidth = min_bandwidth,
-      max_bandwidth = max_bandwidth,
-      recover_min_count = recover_min_count,
-      intensity_weighted = intensity_weighted
+    # run the noise removal in parallel
+    ## progress bar version
+    profiles <- pbapply::pblapply(
+        filenames, 
+        function(filename) {
+            remove_noise(
+                filename = filename,
+                min_pres = min_pres,
+                min_run = min_run,
+                mz_tol = mz_tol,
+                baseline_correct = baseline_correct,
+                baseline_correct_noise_percentile = baseline_correct_noise_percentile,
+                intensity_weighted = intensity_weighted,
+                do.plot = do_plot,
+                cache = cache
+            )
+        }, 
+        cl = cluster
     )
-  })
 
-  recovered_adjusted <- lapply(recovered, function(x) x$adjusted_features)
+    # original version without progress bar
+    # profiles <- snow::parLapply(cluster, filenames, function(filename) {
+    #     remove_noise(
+    #         filename = filename,
+    #         min_pres = min_pres,
+    #         min_run = min_run,
+    #         mz_tol = mz_tol,
+    #         baseline_correct = baseline_correct,
+    #         baseline_correct_noise_percentile = baseline_correct_noise_percentile,
+    #         intensity_weighted = intensity_weighted,
+    #         do.plot = do_plot,
+    #         cache = cache
+    #     )
+    # })
 
-  message("**** computing clusters ****")
-  recovered_clusters <- compute_clusters(
-    feature_tables = recovered_adjusted,
-    mz_tol_relative = adjusted_clusters$mz_tol_relative,
-    mz_tol_absolute = adjusted_clusters$rt_tol_relative,
-    mz_max_diff = 10 * mz_tol,
-    rt_tol_relative = rt_tol_relative,
-    do.plot = do_plot,
-    sample_names = sample_names
-  )
 
-  message("**** feature alignment ****")
-  recovered_aligned <- create_aligned_feature_table(
-      dplyr::bind_rows(recovered_clusters$feature_tables),
-      min_occurrence,
-      sample_names,
-      recovered_clusters$rt_tol_relative,
-      recovered_clusters$mz_tol_relative,
-      cluster
-  )
+    # print the feature extraction message
+    ## progress bar version
+    message("**** feature extraction ****")
+    feature_tables <- pbapply::pblapply(
+        profiles, 
+        function(profile) {
+            prof.to.features(
+                profile = profile,
+                bandwidth = bandwidth,
+                min_bandwidth = min_bandwidth,
+                max_bandwidth = max_bandwidth,
+                sd_cut = sd_cut,
+                sigma_ratio_lim = sigma_ratio_lim,
+                shape_model = shape_model,
+                peak_estim_method = peak_estim_method,
+                component_eliminate = component_eliminate,
+                moment_power = moment_power,
+                BIC_factor = BIC_factor,
+                do.plot = do_plot
+            )
+        }, 
+        cl = cluster
+    )
 
-  aligned_feature_sample_table <- as_feature_sample_table(
-    metadata = aligned$metadata,
-    rt_crosstab = aligned$rt,
-    int_crosstab = aligned$intensity
-  )
+    # message("**** feature extraction ****")
+    # feature_tables <- snow::parLapply(cluster, profiles, function(profile) {
+    #     prof.to.features(
+    #         profile = profile,
+    #         bandwidth = bandwidth,
+    #         min_bandwidth = min_bandwidth,
+    #         max_bandwidth = max_bandwidth,
+    #         sd_cut = sd_cut,
+    #         sigma_ratio_lim = sigma_ratio_lim,
+    #         shape_model = shape_model,
+    #         peak_estim_method = peak_estim_method,
+    #         component_eliminate = component_eliminate,
+    #         moment_power = moment_power,
+    #         BIC_factor = BIC_factor,
+    #         do.plot = do_plot
+    #     )
+    # })
 
-  recovered_feature_sample_table <- as_feature_sample_table(
-    metadata = recovered_aligned$metadata,
-    rt_crosstab = recovered_aligned$rt,
-    int_crosstab = recovered_aligned$intensity
-  )
+    message("**** compute clusters of mz and rt and assign cluster id to individual features ****")
+    extracted_clusters <- compute_clusters(
+        feature_tables = feature_tables,
+        mz_tol_relative = mz_tol_relative,
+        mz_tol_absolute = mz_tol_absolute,
+        mz_max_diff = 10 * mz_tol,
+        rt_tol_relative = rt_tol_relative,
+        do.plot = do_plot,
+        sample_names = sample_names
+    )
 
-  list(
-    extracted_features = recovered$extracted_features,
-    corrected_features = recovered$adjusted_features,
-    aligned_feature_sample_table = aligned_feature_sample_table,
-    recovered_feature_sample_table = recovered_feature_sample_table,
-    aligned_mz_tolerance = as.numeric(recovered_clusters$mz_tol_relative),
-    aligned_rt_tolerance = as.numeric(recovered_clusters$rt_tol_relative)
-  )
+    message("**** select the most features as the template feature table ****")
+    template_features <- compute_template(extracted_clusters$feature_tables)
+
+    message("**** retention time correction based on the template feature table ****")
+    corrected <- foreach::foreach(this.feature = extracted_clusters$feature_tables) %dopar% correct_time(
+        this.feature,
+        template_features
+    )
+
+    message("**** compute clusters of mz and rt and assign cluster id to individual features ****")
+    adjusted_clusters <- compute_clusters(
+        feature_tables = corrected,
+        mz_tol_relative = extracted_clusters$mz_tol_relative,
+        mz_tol_absolute = extracted_clusters$rt_tol_relative,
+        mz_max_diff = 10 * mz_tol,
+        rt_tol_relative = rt_tol_relative,
+        do.plot = do_plot,
+        sample_names = sample_names
+    )
+
+    message("**** feature alignment across all samples ****")
+    aligned <- create_aligned_feature_table(
+        dplyr::bind_rows(adjusted_clusters$feature_tables),
+        min_occurrence,
+        sample_names,
+        adjusted_clusters$rt_tol_relative,
+        adjusted_clusters$mz_tol_relative,
+        cluster
+    )
+
+    # export the following variables to the cluster so that the weaker signal recovery can use them during the parallel processing
+    ## sample_names, feature_tables, corrected, aligned, adjusted_clusters
+    clusterExport(cluster, varlist = c("sample_names", "feature_tables", "corrected"))
+
+    message("**** weaker signal recovery ****")
+    recovered <- pbapply::pblapply(
+        seq_along(filenames), 
+        function(i) {
+              recover.weaker(
+                  filename = filenames[[i]],
+                  sample_name = sample_names[i],
+                  extracted_features = feature_tables[[i]],
+                  adjusted_features = corrected[[i]],
+                  metadata_table = aligned$metadata,
+                  rt_table = aligned$rt,
+                  intensity_table = aligned$intensity,
+                  mz_tol = mz_tol,
+                  mz_tol_relative = adjusted_clusters$mz_tol_relative,
+                  rt_tol_relative = adjusted_clusters$rt_tol_relative,
+                  recover_mz_range = recover_mz_range,
+                  recover_rt_range = recover_rt_range,
+                  use_observed_range = use_observed_range,
+                  bandwidth = bandwidth,
+                  min_bandwidth = min_bandwidth,
+                  max_bandwidth = max_bandwidth,
+                  recover_min_count = recover_min_count,
+                  intensity_weighted = intensity_weighted
+              )
+        }, 
+        cl = cluster
+    )
+
+    # message("**** weaker signal recovery ****")
+    # recovered <- snow::parLapply(cluster, seq_along(filenames), function(i) {
+    #     recover.weaker(
+    #         filename = filenames[[i]],
+    #         sample_name = sample_names[i],
+    #         extracted_features = feature_tables[[i]],
+    #         adjusted_features = corrected[[i]],
+    #         metadata_table = aligned$metadata,
+    #         rt_table = aligned$rt,
+    #         intensity_table = aligned$intensity,
+    #         mz_tol = mz_tol,
+    #         mz_tol_relative = adjusted_clusters$mz_tol_relative,
+    #         rt_tol_relative = adjusted_clusters$rt_tol_relative,
+    #         recover_mz_range = recover_mz_range,
+    #         recover_rt_range = recover_rt_range,
+    #         use_observed_range = use_observed_range,
+    #         bandwidth = bandwidth,
+    #         min_bandwidth = min_bandwidth,
+    #         max_bandwidth = max_bandwidth,
+    #         recover_min_count = recover_min_count,
+    #         intensity_weighted = intensity_weighted
+    #     )
+    # })
+
+    # extract the adjusted features from the recovered list
+    recovered_adjusted <- lapply(recovered, function(x) x$adjusted_features)
+
+    message("**** compute clusters of mz and rt and assign cluster id to individual features ****")
+    recovered_clusters <- compute_clusters(
+        feature_tables = recovered_adjusted,
+        mz_tol_relative = adjusted_clusters$mz_tol_relative,
+        mz_tol_absolute = adjusted_clusters$rt_tol_relative,
+        mz_max_diff = 10 * mz_tol,
+        rt_tol_relative = rt_tol_relative,
+        do.plot = do_plot,
+        sample_names = sample_names
+    )
+
+    message("**** feature alignment based on the recovered features ****")
+    recovered_aligned <- create_aligned_feature_table(
+        dplyr::bind_rows(recovered_clusters$feature_tables),
+        min_occurrence,
+        sample_names,
+        recovered_clusters$rt_tol_relative,
+        recovered_clusters$mz_tol_relative,
+        cluster
+    )
+
+    message("**** convert the aligned feature table to a feature table ****")
+    aligned_feature_sample_table <- as_feature_sample_table(
+        metadata = aligned$metadata,
+        rt_crosstab = aligned$rt,
+        int_crosstab = aligned$intensity
+    )
+
+    message("**** convert the recovered aligned feature table to a feature table ****")
+    recovered_feature_sample_table <- as_feature_sample_table(
+        metadata = recovered_aligned$metadata,
+        rt_crosstab = recovered_aligned$rt,
+        int_crosstab = recovered_aligned$intensity
+    )
+
+    message("**** return the apLCMSresults ****")
+    list(
+        extracted_features = recovered$extracted_features,
+        corrected_features = recovered$adjusted_features,
+        aligned_feature_sample_table = aligned_feature_sample_table,
+        recovered_feature_sample_table = recovered_feature_sample_table,
+        aligned_mz_tolerance = as.numeric(recovered_clusters$mz_tol_relative),
+        aligned_rt_tolerance = as.numeric(recovered_clusters$rt_tol_relative)
+    )
 }

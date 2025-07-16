@@ -10,8 +10,8 @@ load_file <- function(filename) {
   return(this)
 }
 
-#' Load data either from cache or load raw file and detect peaks.
-#' @description  THIS FUNCTION IS DEPRECATED!
+#' Load data either from raw files and detect peaks or from cache files with peaks detected.
+#' @description  This function is optional and is not used in the default setting
 #' @export
 load_data <- function(filename,
                       cache,
@@ -73,16 +73,19 @@ remove_noise <- function(filename,
                      do.plot,
                      cache,
                      grouping_threshold = Inf) {
-  raw.data <- load_file(filename)
 
-  raw.prof <- adaptive.bin(
-    raw.data,
+  # use the load_data function to integrate the cache usage.
+  ## if cache is FALSE, then no peak detection file will be saved and results are directly passed to the later functions
+  ## if cache is TRUE, then each peak detection file will be saved and results are also directly passed to the later functions
+  raw.prof = load_data(
+    filename = filename,
+    cache = cache,
     min_run = min_run,
     min_pres = min_pres,
     mz_tol = mz_tol,
     intensity_weighted = intensity_weighted
-  )
-
+    )
+  
   newprof <- cbind(
     raw.prof$features$mz,
     raw.prof$features$rt,

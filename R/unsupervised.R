@@ -155,7 +155,7 @@ unsupervised <- function(
     number_of_samples <- length(sample_names)
 
     # As not all objects or variables are automatically exported to the worker environments when using parallel processing in R, we need to export the needed variables to the cluster
-    clusterExport(cluster, varlist = c(
+    clusterExport(cluster, c(
       "cache", "min_occurrence", "min_pres","min_run","mz_tol","baseline_correct","baseline_correct_noise_percentile","shape_model","BIC_factor","peak_estim_method","bandwidth","min_bandwidth","max_bandwidth","sd_cut","sigma_ratio_lim","component_eliminate","moment_power","mz_tol_relative","rt_tol_relative","mz_tol_absolute","recover_mz_range","recover_rt_range","use_observed_range","recover_min_count","intensity_weighted","do_plot"
     ))
     # print the current settings for min_pres and min_run
@@ -288,7 +288,7 @@ unsupervised <- function(
 
     # export the following variables to the cluster so that the weaker signal recovery can use them during the parallel processing
     ## sample_names, feature_tables, corrected, aligned, adjusted_clusters
-    clusterExport(cluster, varlist = c("sample_names", "feature_tables", "corrected"))
+    clusterExport(cluster, c("sample_names", "feature_tables", "corrected"))
 
     message("**** weaker signal recovery ****")
     recovered <- pbapply::pblapply(

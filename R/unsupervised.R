@@ -145,14 +145,14 @@ unsupervised <- function(
     register_functions_to_cluster(cluster)
 
     # print the number of cores
-    print(paste0("number of cores: ", getDoParWorkers()))
-
-    # print the number of samples
-    print(paste0("number of samples: ", number_of_samples))
+    print(paste0("number of cores used: ", cluster))
 
     check_files(filenames)
     sample_names <- get_sample_name(filenames)
     number_of_samples <- length(sample_names)
+
+    # print the number of samples
+    print(paste0("number of samples: ", number_of_samples))
 
     # As not all objects or variables are automatically exported to the worker environments when using parallel processing in R, we need to export the needed variables to the cluster
     clusterExport(cluster, c(

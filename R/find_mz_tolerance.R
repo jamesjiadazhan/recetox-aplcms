@@ -14,6 +14,10 @@ NULL
 #' @return float Minimum tolerance values to use.
 compute_min_mz_tolerance <- function(mz, mz_tol_relative, mz_tol_absolute) {
     l <- length(mz)
+    ## if l is less than 1, return NULL to prevent the l-1 < 0 bug
+    if (l < 1){
+        return(NULL)
+    }
     mz_midpoints <- ((mz[2:l] + mz[1:(l - 1)]) / 2)
     mz_ftr_relative_tolerances <- mz_tol_relative * mz_midpoints
     min_mz_tol <- min(mz_tol_absolute, mz_ftr_relative_tolerances)
@@ -41,6 +45,12 @@ find_mz_tolerance <- function(mz,
                      do.plot) {
     mz <- sort(mz)
     l <- length(mz)
+    
+    ## if l is less than 1, return NULL to prevent the l-1 < 0 bug
+    if (l < 1){
+        return(NULL)
+    }
+    
     # pairwise m/z difference divided by their average, filtered outside of tolerance limit
     pairwise_mean <- (mz[2:l] + mz[1:(l - 1)]) / 2
     distances <- diff(mz) / pairwise_mean

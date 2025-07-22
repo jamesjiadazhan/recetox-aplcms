@@ -43,6 +43,10 @@ compute_clusters <- function(feature_tables,
                              rt_tol_relative,
                              do.plot,
                              sample_names = NA) {
+
+  # print the head of feature_tables
+  print(head(feature_tables))
+  
   number_of_samples <- length(feature_tables)
   all <- concatenate_feature_tables(feature_tables, sample_names)
 

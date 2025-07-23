@@ -23,6 +23,7 @@ load_data <- function(filename,
 
   if (cache && file.exists(rawprof_filename)) {
     load(rawprof_filename)
+
   } else {
     raw.data <- load_file(filename)
     raw.prof <- adaptive.bin(
@@ -93,6 +94,20 @@ remove_noise <- function(filename,
     raw.prof$features$grps
   )
 
+  h.1<-log10(raw.prof$height.rec[raw.prof$height.rec[,2]<= max(2, raw.prof$min.count.run*min_pres/2),3])
+  
+  if(is.na(baseline_correct)){
+      baseline_correct = 10^quantile(h.1, baseline_correct_noise_percentile)
+      baseline_correct_noise_percentile_print = baseline_correct_noise_percentile*100
+      message(c("maximal height cut is automatically set at the ", baseline_correct_noise_percentile_print, " percentile of noise group heights: ", baseline_correct))
+  }else{
+      message(c("maximal height cut is provided by user: ", baseline_correct))
+  }
+
+  if (is.na(baseline_correct)) {
+    baseline_correct = 0
+  }
+
   run.sel <- raw.prof$height.rec[which(raw.prof$height.rec[, 2] >= raw.prof$min.count.run * min_pres & raw.prof$height.rec[, 3] > baseline_correct), 1]
 
   newprof <- as.data.frame(newprof[newprof[, 4] %in% run.sel, ])
@@ -112,24 +127,6 @@ remove_noise <- function(filename,
     min_pres = min_pres,
     min_run = min_run
   )
-
-  if (do.plot) {
-    plot_raw_profile_histogram(
-      raw.prof,
-      min_pres,
-      baseline_correct,
-      baseline_correct_noise_percentile,
-      mz_tol,
-      new.prof
-    )
-  }
-
-  # new_rec_tibble <- tibble::tibble(
-  #   mz = new.prof$new_rec[, 1],
-  #   rt = new.prof$new_rec[, 2],
-  #   intensity = new.prof$new_rec[, 3],
-  #   group_number = new.prof$new_rec[, 4]
-  # )
 
   return(new.prof)
 }

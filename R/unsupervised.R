@@ -187,21 +187,8 @@ unsupervised <- function(
         cl = cluster
     )
 
-    # original version without progress bar
-    # profiles <- snow::parLapply(cluster, filenames, function(filename) {
-    #     remove_noise(
-    #         filename = filename,
-    #         min_pres = min_pres,
-    #         min_run = min_run,
-    #         mz_tol = mz_tol,
-    #         baseline_correct = baseline_correct,
-    #         baseline_correct_noise_percentile = baseline_correct_noise_percentile,
-    #         intensity_weighted = intensity_weighted,
-    #         do.plot = do_plot,
-    #         cache = cache
-    #     )
-    # })
-
+    # export prof.to.features function to the cluster
+    clusterExport(cluster, c("prof.to.features", "compute_chromatographic_profile"))
 
     # print the feature extraction message
     ## progress bar version
@@ -220,30 +207,11 @@ unsupervised <- function(
                 peak_estim_method = peak_estim_method,
                 component_eliminate = component_eliminate,
                 moment_power = moment_power,
-                BIC_factor = BIC_factor,
-                do.plot = do_plot
+                BIC_factor = BIC_factor
             )
         }, 
         cl = cluster
     )
-
-    # message("**** feature extraction ****")
-    # feature_tables <- snow::parLapply(cluster, profiles, function(profile) {
-    #     prof.to.features(
-    #         profile = profile,
-    #         bandwidth = bandwidth,
-    #         min_bandwidth = min_bandwidth,
-    #         max_bandwidth = max_bandwidth,
-    #         sd_cut = sd_cut,
-    #         sigma_ratio_lim = sigma_ratio_lim,
-    #         shape_model = shape_model,
-    #         peak_estim_method = peak_estim_method,
-    #         component_eliminate = component_eliminate,
-    #         moment_power = moment_power,
-    #         BIC_factor = BIC_factor,
-    #         do.plot = do_plot
-    #     )
-    # })
 
     message("**** compute clusters of mz and rt and assign cluster id to individual features ****")
     extracted_clusters <- compute_clusters(
@@ -276,6 +244,10 @@ unsupervised <- function(
         sample_names = sample_names
     )
 
+    # export the following variables to the cluster so that the weaker signal recovery can use them during the parallel processing
+    ## sample_names, adjusted_clusters
+    clusterExport(cluster, c("sample_names", "adjusted_clusters"))
+
     message("**** feature alignment across all samples ****")
     aligned <- create_aligned_feature_table(
         dplyr::bind_rows(adjusted_clusters$feature_tables),
@@ -288,8 +260,9 @@ unsupervised <- function(
 
     # export the following variables to the cluster so that the weaker signal recovery can use them during the parallel processing
     ## sample_names, feature_tables, corrected, aligned, adjusted_clusters
-    clusterExport(cluster, c("sample_names", "feature_tables", "corrected"))
-
+    clusterExport(cluster, c("feature_tables", "corrected", "aligned", "adjusted_clusters"))
+    clusterExport(cluster, c("filenames"))
+    
     message("**** weaker signal recovery ****")
     recovered <- pbapply::pblapply(
         seq_along(filenames), 
@@ -318,30 +291,6 @@ unsupervised <- function(
         cl = cluster
     )
 
-    # message("**** weaker signal recovery ****")
-    # recovered <- snow::parLapply(cluster, seq_along(filenames), function(i) {
-    #     recover.weaker(
-    #         filename = filenames[[i]],
-    #         sample_name = sample_names[i],
-    #         extracted_features = feature_tables[[i]],
-    #         adjusted_features = corrected[[i]],
-    #         metadata_table = aligned$metadata,
-    #         rt_table = aligned$rt,
-    #         intensity_table = aligned$intensity,
-    #         mz_tol = mz_tol,
-    #         mz_tol_relative = adjusted_clusters$mz_tol_relative,
-    #         rt_tol_relative = adjusted_clusters$rt_tol_relative,
-    #         recover_mz_range = recover_mz_range,
-    #         recover_rt_range = recover_rt_range,
-    #         use_observed_range = use_observed_range,
-    #         bandwidth = bandwidth,
-    #         min_bandwidth = min_bandwidth,
-    #         max_bandwidth = max_bandwidth,
-    #         recover_min_count = recover_min_count,
-    #         intensity_weighted = intensity_weighted
-    #     )
-    # })
-
     # extract the adjusted features from the recovered list
     recovered_adjusted <- lapply(recovered, function(x) x$adjusted_features)
 
@@ -355,6 +304,15 @@ unsupervised <- function(
         do.plot = do_plot,
         sample_names = sample_names
     )
+    rm(recovered_adjusted, adjusted_clusters)
+
+    # extract the aligned m/z and rt tolerance from the recovered clusters
+    aligned_mz_tolerance = as.numeric(recovered_clusters$mz_tol_relative)
+    aligned_rt_tolerance = as.numeric(recovered_clusters$rt_tol_relative)
+
+    # export the following variables to the cluster so that parallel processing can use them
+    ## recovered_clusters
+    clusterExport(cluster, c("recovered_clusters"))
 
     message("**** feature alignment based on the recovered features ****")
     recovered_aligned <- create_aligned_feature_table(
@@ -365,6 +323,7 @@ unsupervised <- function(
         recovered_clusters$mz_tol_relative,
         cluster
     )
+    rm(recovered_clusters)
 
     message("**** convert the aligned feature table to a feature table ****")
     aligned_feature_sample_table <- as_feature_sample_table(
@@ -372,6 +331,7 @@ unsupervised <- function(
         rt_crosstab = aligned$rt,
         int_crosstab = aligned$intensity
     )
+    rm(aligned)
 
     message("**** convert the recovered aligned feature table to a feature table ****")
     recovered_feature_sample_table <- as_feature_sample_table(
@@ -379,6 +339,7 @@ unsupervised <- function(
         rt_crosstab = recovered_aligned$rt,
         int_crosstab = recovered_aligned$intensity
     )
+    rm(recovered_aligned)
 
     message("**** return the apLCMSresults ****")
     list(
@@ -386,7 +347,7 @@ unsupervised <- function(
         corrected_features = recovered$adjusted_features,
         aligned_feature_sample_table = aligned_feature_sample_table,
         recovered_feature_sample_table = recovered_feature_sample_table,
-        aligned_mz_tolerance = as.numeric(recovered_clusters$mz_tol_relative),
-        aligned_rt_tolerance = as.numeric(recovered_clusters$rt_tol_relative)
+        aligned_mz_tolerance = aligned_mz_tolerance,
+        aligned_rt_tolerance = aligned_rt_tolerance
     )
 }

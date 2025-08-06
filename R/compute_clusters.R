@@ -176,27 +176,3 @@ compute_clusters_simple <- function(feature_tables, sample_names, mz_tol_ppm, rt
     dplyr::group_by(sample_id) |>
     dplyr::group_split()
 }
-
-
-# compute_clusters_v2 <- function(feature_tables, mz_tol_ppm, rt_tol) {
-
-#   mz_tol <- mz_tol_ppm * 1e-06
-
-#   match_fun <- list(
-#     ~ abs(.x - .y) < mz_tol * .x,
-#     ~ abs(.x - .y) < rt_tol
-#   )
-
-#   join_and_update <- function(df_a, df_b) {
-#     merged <- fuzzyjoin::fuzzy_ful.l_join(df_a, df_b, by=c("mz", "rt"), match_fun = match_fun) |>
-#      dplyr::rename(mz = mz.x, rt = rt.x)
-#   }
-
-#   aligned <- purrr::reduce(feature_tables, join_and_update)
-# }
-
-#   multi_match_fun <- function(x, y) {
-#     return(abs(x[,1] - y[,1]) < 10e-05 & abs(x[,2] - y[,2]) < 2)
-#   }
-
-#   f4 <- fuzzyjoin::fuzzy_full_join(f1, f2, by=NULL, multi_by=c("mz", "rt"), match_fun = NULL, multi_match_fun = multi_match_fun)

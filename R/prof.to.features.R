@@ -308,13 +308,34 @@ compute_dx <- function(x, apply_mask=TRUE) {
 #' @param base.curve Matrix that contains rts of feature in the same rt cluster.
 #' @return dataframe with two columns
 #' @export
-compute_chromatographic_profile <- function(profile, base.curve) {
-  rt_range <- range(profile[, "rt"])
-  rt_profile <- base.curve[dplyr::between(base.curve[, "base.curve"], min(rt_range), max(rt_range)), ]
-  rt_profile[rt_profile[, "base.curve"] %in% profile[, "rt"], 2] <- profile[, "intensity"]
-  colnames(rt_profile)[2] <- "intensity"
-  return (rt_profile)
-}
+# ---------- Faster compute_chromatographic_profile ----------
+compute_chromatographic_profile <- compiler::cmpfun(function(profile,
+                                                                  base.curve){
+    ## 1.  Find the rows of base.curve that lie inside the RT range ----
+    rt_min  <- profile[["rt"]] |> min()
+    rt_max  <- profile[["rt"]] |> max()
+
+    keep_idx <- base.curve[, "base.curve"] >= rt_min &
+                base.curve[, "base.curve"] <= rt_max
+
+    rt_profile <- base.curve[keep_idx, , drop = FALSE]   # matrix, 2 cols
+
+    ## 2.  Map each profile RT to its row in rt_profile in O(n) time ----
+    # Because both vectors are sorted, `match()` is safe & fast.
+    map <- match(profile[["rt"]], rt_profile[, "base.curve"])
+
+    # In case of duplicated RTs (rare, but possible), aggregate first
+    if (anyDuplicated(profile[["rt"]])) {
+        # Replace with whichever rule you need; here: keep the *max* intensity
+        tapply(profile[["intensity"]], profile[["rt"]], max) |>
+            (\(v) rt_profile[match(names(v), rt_profile[, "base.curve"]), 2] <<- v)()
+    } else {
+        rt_profile[map, 2] <- profile[["intensity"]]
+    }
+
+    colnames(rt_profile)[2] <- "intensity"
+    rt_profile
+})
 
 #' @description
 #' Estimates total signal strength (total area of the estimated normal curve).
@@ -893,84 +914,127 @@ normix.bic <- function(x, y, do.plot = FALSE, bw = c(15, 30, 60), eliminate = .0
 #'  curve), and estimated total signal strength (total area of the estimated normal curve).
 #' @export
 prof.to.features <- function(profile,
-                             bandwidth,
-                             min_bandwidth,
-                             max_bandwidth,
-                             sd_cut,
-                             sigma_ratio_lim,
-                             shape_model,
-                             peak_estim_method,
-                             moment_power,
-                             component_eliminate,
-                             BIC_factor,
-                             do.plot) {
-  validate_model_method_input(shape_model, peak_estim_method)
+                                  bandwidth,
+                                  min_bandwidth,
+                                  max_bandwidth,
+                                  sd_cut,
+                                  sigma_ratio_lim,
+                                  shape_model = c("BiGaussian"),
+                                  peak_estim_method = c("moment"),
+                                  moment_power = 4L,
+                                  component_eliminate = TRUE,
+                                  BIC_factor = 1) {
+    ## ---- 0. House-keeping ----
+    validate_model_method_input(shape_model, peak_estim_method)
 
-  profile <- preprocess_profile(profile)
+    profile <- preprocess_profile(profile)
 
-  bws <- preprocess_bandwidth(min_bandwidth, max_bandwidth, profile)
-  min_bandwidth <- bws[["min_bandwidth"]]
-  max_bandwidth <- bws[["max_bandwidth"]]
+    ## ---- 1. Pre-compute constants ----
+    bws             <- preprocess_bandwidth(min_bandwidth, max_bandwidth, profile)
+    min_bandwidth   <- bws$min_bandwidth
+    max_bandwidth   <- bws$max_bandwidth
 
-  # base.curve <- compute_base_curve(profile[, "rt"])
-  base.curve <- sort(unique(profile$rt))
-  base.curve <- cbind(base.curve, base.curve * 0)
-  
-  all_diff_mean_rts <- compute_delta_rt(base.curve[, 1]) # computes diff of mean values from consecutive values 
-  aver_diff <- mean(diff(base.curve))  
+    ## ---- 1. Pre-compute constants ----
+    base.curve.vals <- sort(unique(profile$rt))
 
-  keys <- c("mz", "rt", "sd1", "sd2", "area")
-  peak_parameters <- matrix(0, nrow = 0, ncol = length(keys), dimnames = list(NULL, keys))
-  
-  feature_groups <- split(profile, profile$group_number)
+    # keep the shape expected by downstream code ⬇
+    base.curve      <- cbind(base.curve = base.curve.vals, zero = 0)         # 2-column matrix
 
-  # loop over each group
-  for (i in seq_along(feature_groups))
-  {
-    # init variables
-    feature_group <- feature_groups[[i]] |> dplyr::arrange_at("rt") 
+    delta_rt        <- compute_delta_rt(base.curve[, "base.curve"])
+    names(delta_rt) <- base.curve[, "base.curve"]    # name look-up vector
 
-    num_features <- nrow(feature_group)
-    # The estimation procedure for a single peak
-    # Defines the dataframe containing median_mz, median_rt, sd1, sd2, and area
-    if (num_features < 2) {
-      time_weights <- all_diff_mean_rts[which(base.curve[, "base.curve"] %in% feature_group[2])]
-      rt_peak_shape <- c(feature_group[1], feature_group[2], NA, NA, feature_group[3] * time_weights)
-      peak_parameters <- rbind(peak_parameters, rt_peak_shape)
-    } else {
-      # find bandwidth for these particular range
-      rt_range <- range(feature_group[, "rt"])
-      bw <- min(max(bandwidth * (max(rt_range) - min(rt_range)), min_bandwidth), max_bandwidth)
-      bw <- seq(bw, 2 * bw, length.out = 3)
-      if (bw[1] > 1.5 * min_bandwidth) {
-        bw <- c(max(min_bandwidth, bw[1] / 2), bw)
-      }
+    aver_diff       <- mean(diff(base.curve.vals))
 
-      rt_profile <- compute_chromatographic_profile(feature_group, base.curve)
-      if (shape_model == "Gaussian") {
-        rt_peak_shape <- compute_gaussian_peak_shape(rt_profile, bw, component_eliminate, BIC_factor, aver_diff)
-      } else {
-        rt_peak_shape <- bigauss.mix(rt_profile, sigma_ratio_lim = sigma_ratio_lim, bw = bw, moment_power = moment_power, peak_estim_method = peak_estim_method, eliminate = component_eliminate, BIC_factor = BIC_factor)$param[, c(1, 2, 3, 5)]
-      }
+    ## ---- 2. Convert to data.table for cheap grouping ----
+    profile_dt <- data.table::as.data.table(profile)
+    data.table::setorder(profile_dt, group_number, rt)
+    groups     <- split(profile_dt, by = "group_number", keep.by = FALSE)
 
-      if (is.null(nrow(rt_peak_shape))) {
-        peak_parameters <- rbind(peak_parameters, c(median(feature_group[, "mz"]), rt_peak_shape))
-      } else {
-        for (m in 1:nrow(rt_peak_shape))
-        {
-          rt_diff <- abs(feature_group[, "rt"] - rt_peak_shape[m, 1])
-          peak_parameters <- rbind(peak_parameters, c(mean(feature_group[which(rt_diff == min(rt_diff)), 1]), rt_peak_shape[m, ]))
+    ## Helper to map time weight look-ups -----------------
+    rt_to_timeweight <- setNames(delta_rt, nm = base.curve[, "base.curve"])
+
+    ## ---- 3. Per-group worker ----
+    process_group <- function(feature_group) {
+        n <- nrow(feature_group)
+
+        # Fast path: singleton peak  ----------------------
+        # Defines the dataframe containing median_mz, median_rt, sd1, sd2, and area
+        if (n < 2L) {
+            rt <- feature_group$rt[1]
+            mz <- feature_group$mz[1]
+            area <- feature_group$area[1]
+            time_w <- rt_to_timeweight[[as.character(rt)]]
+            return(list(
+                mz  = mz,
+                rt  = rt,
+                sd1 = NA_real_,
+                sd2 = NA_real_,
+                area = area * time_w
+            ))
         }
-      }
+
+        # General case  ----------------------------------
+        # find bandwidth for these particular range
+        rt_range <- range(feature_group$rt)
+        bw0      <- min(max(bandwidth * diff(rt_range), min_bandwidth), max_bandwidth)
+        bw_vec   <- if (bw0 > 1.5 * min_bandwidth) {
+                        c(max(min_bandwidth, bw0 / 2), seq(bw0, 2 * bw0, length.out = 3))
+                    } else {
+                        seq(bw0, 2 * bw0, length.out = 3)
+                    }
+
+        rt_profile <- compute_chromatographic_profile(feature_group, base.curve)
+
+        peak_mat <- if (shape_model == "Gaussian") {
+                        compute_gaussian_peak_shape(rt_profile,
+                                                    bw   = bw_vec,
+                                                    eliminate   = component_eliminate,
+                                                    BIC_factor  = BIC_factor,
+                                                    aver_diff   = aver_diff)
+                    } else {
+                        bigauss.mix(rt_profile,
+                                    sigma_ratio_lim = sigma_ratio_lim,
+                                    bw              = bw_vec,
+                                    moment_power    = moment_power,
+                                    peak_estim_method = peak_estim_method,
+                                    eliminate       = component_eliminate,
+                                    BIC_factor      = BIC_factor)$param[, c(1, 2, 3, 5), drop = FALSE]
+                    }
+
+        ## Normalise output to a data.frame ---------------
+        if (is.null(nrow(peak_mat))) peak_mat <- matrix(peak_mat, nrow = 1L)
+
+        ## Match each peak's RT back to a representative m/z
+        idx <- vapply(peak_mat[, 1], function(rt_centre) {
+            which.min(abs(feature_group$rt - rt_centre))
+        }, integer(1))
+
+        data.frame(
+            mz   = feature_group$mz[idx],
+            rt   = peak_mat[, 1],
+            sd1  = peak_mat[, 2],
+            sd2  = peak_mat[, 3],
+            area = peak_mat[, 4],
+            check.names = FALSE
+        )
     }
-  }
-  peak_parameters <- peak_parameters[order(peak_parameters[, "mz"], peak_parameters[, "rt"]), ]
-  peak_parameters <- peak_parameters[which(apply(peak_parameters[, c("sd1", "sd2")], 1, min) > sd_cut[1] & apply(peak_parameters[, c("sd1", "sd2")], 1, max) < sd_cut[2]), ]
-  rownames(peak_parameters) <- NULL
 
-  if (do.plot) {
-    plot_peak_summary(feature_groups, peak_parameters)
-  }
+    ## ---- 4. Run per-group using lapply -----
+    pb <- txtProgressBar(min = 0, max = length(groups), style = 3)
+    res_list <- vector("list", length(groups))
+    for (i in seq_along(groups)) {
+        res_list[[i]] <- process_group(groups[[i]])
+        setTxtProgressBar(pb, i)
+    }
+    close(pb)
 
-  return(tibble::as_tibble(peak_parameters))
+    ## ---- 5. Bind & post-filter -------------------------
+    peak_parameters <- data.table::rbindlist(res_list)
+
+    peak_parameters <- peak_parameters[
+        sd1 > sd_cut[1] & sd2 > sd_cut[1] &
+        sd1 < sd_cut[2] & sd2 < sd_cut[2]
+    ][order(mz, rt)]
+
+    tibble::as_tibble(peak_parameters)
 }
